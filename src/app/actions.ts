@@ -7,6 +7,8 @@ import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { revalidatePath } from "next/cache";
 import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp } from "firebase/firestore";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 // Helper to get a user's role by directly querying Firestore
@@ -232,15 +234,21 @@ export async function updateRegistrationDetails(values: EditRegistrationInput) {
         return { success: false, message: "Invalid data provided." };
     }
 
-    try {
-        const registrationRef = doc(db, "registrations", registrationId);
-        await updateDoc(registrationRef, parsed.data);
-        revalidatePath('/admin');
-        revalidatePath(`/ticket/${registrationId}`);
-        return { success: true, message: "Rider details updated successfully." };
-    } catch (error) {
-        return { success: false, message: "Could not update rider details." };
-    }
+    const registrationRef = doc(db, "registrations", registrationId);
+    
+    updateDoc(registrationRef, parsed.data).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: parsed.data
+        })
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+
+    revalidatePath('/admin');
+    revalidatePath(`/ticket/${registrationId}`);
+    return { success: true, message: "Rider details updated successfully." };
 }
 
 
@@ -269,9 +277,17 @@ export async function addCoRider(values: z.infer<typeof addCoRiderSchema>) {
             return { success: false, message: "This registration is already for a duo." };
         }
 
-        await updateDoc(registrationRef, {
+        updateDoc(registrationRef, {
             ...coRiderData,
             registrationType: 'duo',
+        }).catch((e: any) => {
+             const error = new FirestorePermissionError({
+                path: registrationRef.path,
+                operation: "update",
+                requestResourceData: coRiderData
+            })
+            errorEmitter.emit('permission-error', error);
+            return { success: false, message: e.message };
         });
 
         revalidatePath('/dashboard');
@@ -302,18 +318,25 @@ export async function updateRegistrationStatus(values: z.infer<typeof updateStat
         return { success: false, message: "Invalid data provided." };
     }
 
-    try {
-        const { registrationId, status, adminId } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        await updateDoc(registrationRef, { 
-          status,
-          statusLastUpdatedAt: serverTimestamp(),
-          statusLastUpdatedBy: adminId,
+    const { registrationId, status, adminId } = parsed.data;
+    const registrationRef = doc(db, "registrations", registrationId);
+    const dataToUpdate = { 
+        status,
+        statusLastUpdatedAt: serverTimestamp(),
+        statusLastUpdatedBy: adminId,
+    };
+    
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
         });
-        return { success: true, message: `Registration status updated to ${status}.` };
-    } catch (error) {
-        return { success: false, message: "Could not update registration status." };
-    }
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+
+    return { success: true, message: `Registration status updated to ${status}.` };
 }
 
 // Schema for deleting a registration
@@ -338,13 +361,15 @@ export async function deleteRegistration(values: z.infer<typeof deleteRegistrati
     try {
       await deleteDoc(doc(db, "registrations", registrationId));
       await deleteDoc(doc(db, "users", registrationId));
-      // NOTE: Deleting the auth user requires the Admin SDK, which is currently removed.
-      // This action will now only delete the database records.
-      // await adminAuth.deleteUser(registrationId);
-      
       return { success: true, message: "Registration and user data have been deleted." };
-    } catch (error) {
-      return { success: false, message: "Failed to delete registration data." };
+    } catch (error: any) {
+        const registrationRef = doc(db, "registrations", registrationId);
+        const permError = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "delete",
+        });
+        errorEmitter.emit('permission-error', permError);
+        return { success: false, message: "Failed to delete registration data." };
     }
 }
 
@@ -367,18 +392,23 @@ export async function checkInRider(values: z.infer<typeof checkInSchema>) {
     if (!parsed.success) {
         return { success: false, message: "Invalid data provided for check-in." };
     }
-
-    try {
-        const { registrationId, riderNumber } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        
-        const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
-
-        await updateDoc(registrationRef, { [fieldToUpdate]: true });
-        return { success: true, message: `Rider ${riderNumber} checked in successfully.` };
-    } catch (error) {
-        return { success: false, message: "Could not process check-in." };
-    }
+    
+    const { registrationId, riderNumber } = parsed.data;
+    const registrationRef = doc(db, "registrations", registrationId);
+    const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
+    const dataToUpdate = { [fieldToUpdate]: true };
+    
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
+        })
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: `Rider ${riderNumber} checked in successfully.` };
 }
 
 // Schema for marking a rider as finished
@@ -400,17 +430,22 @@ export async function finishRider(values: z.infer<typeof finishRiderSchema>) {
         return { success: false, message: "Invalid data provided for finishing." };
     }
 
-    try {
-        const { registrationId, riderNumber } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        
-        const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
+    const { registrationId, riderNumber } = parsed.data;
+    const registrationRef = doc(db, "registrations", registrationId);
+    const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
+    const dataToUpdate = { [fieldToUpdate]: true };
 
-        await updateDoc(registrationRef, { [fieldToUpdate]: true });
-        return { success: true, message: `Rider ${riderNumber} marked as finished!` };
-    } catch (error) {
-        return { success: false, message: "Could not process finish." };
-    }
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: `Rider ${riderNumber} marked as finished!` };
 }
 
 // Schema for reverting a rider's check-in
@@ -427,15 +462,23 @@ export async function revertCheckIn(values: z.infer<typeof revertCheckInSchema>)
     }
     const parsed = revertCheckInSchema.safeParse(values);
     if (!parsed.success) return { success: false, message: "Invalid data for check-in reversal." };
-    try {
-        const { registrationId, riderNumber } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
-        await updateDoc(registrationRef, { [fieldToUpdate]: false });
-        return { success: true, message: `Rider ${riderNumber} check-in has been reverted.` };
-    } catch (error) {
-        return { success: false, message: "Could not revert check-in." };
-    }
+    
+    const { registrationId, riderNumber } = parsed.data;
+    const registrationRef = doc(db, "registrations", registrationId);
+    const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
+    const dataToUpdate = { [fieldToUpdate]: false };
+    
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: `Rider ${riderNumber} check-in has been reverted.` };
 }
 
 // Schema for reverting a rider's finish status
@@ -452,15 +495,23 @@ export async function revertFinish(values: z.infer<typeof revertFinishSchema>) {
     }
     const parsed = revertFinishSchema.safeParse(values);
     if (!parsed.success) return { success: false, message: "Invalid data for finish reversal." };
-    try {
-        const { registrationId, riderNumber } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
-        await updateDoc(registrationRef, { [fieldToUpdate]: false });
-        return { success: true, message: `Rider ${riderNumber} finish status has been reverted.` };
-    } catch (error) {
-        return { success: false, message: "Could not revert finish status." };
-    }
+
+    const { registrationId, riderNumber } = parsed.data;
+    const registrationRef = doc(db, "registrations", registrationId);
+    const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
+    const dataToUpdate = { [fieldToUpdate]: false };
+    
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: `Rider ${riderNumber} finish status has been reverted.` };
 }
 
 // Schema for adding a question
@@ -473,25 +524,32 @@ const addQuestionSchema = z.object({
 
 export async function addQuestion(values: z.infer<typeof addQuestionSchema>) {
     const parsed = addQuestionSchema.safeParse(values);
-
     if (!parsed.success) {
         return { success: false, message: "Invalid data provided." };
     }
     
-    try {
-        const userDocRef = doc(db, "users", values.userId);
-        const userDocSnap = await getDoc(userDocRef);
-        const displayName = userDocSnap.data()?.displayName;
-        await addDoc(collection(db, "qna"), {
-            ...parsed.data,
-            userName: displayName || values.userName,
-            isPinned: false,
-            createdAt: serverTimestamp(),
+    const userDocRef = doc(db, "users", values.userId);
+    const userDocSnap = await getDoc(userDocRef);
+    const displayName = userDocSnap.data()?.displayName;
+    const qnaCollectionRef = collection(db, "qna");
+    const dataToAdd = {
+        ...parsed.data,
+        userName: displayName || values.userName,
+        isPinned: false,
+        createdAt: serverTimestamp(),
+    };
+
+    addDoc(qnaCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: qnaCollectionRef.path,
+            operation: "create",
+            requestResourceData: dataToAdd
         });
-        return { success: true, message: "Question posted successfully!" };
-    } catch (error) {
-        return { success: false, message: "Could not post your question. Please try again." };
-    }
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: "Question posted successfully!" };
 }
 
 
@@ -506,28 +564,35 @@ const addReplySchema = z.object({
 
 export async function addReply(values: z.infer<typeof addReplySchema>) {
     const parsed = addReplySchema.safeParse(values);
-
     if (!parsed.success) {
         return { success: false, message: "Invalid data provided." };
     }
+
     const userDocRef = doc(db, 'users', values.userId);
     const userDoc = await getDoc(userDocRef);
     const userRole = userDoc.data()?.role;
     const displayName = userDoc.data()?.displayName;
-
-    try {
-        const { questionId, ...replyData } = parsed.data;
-        const replyCollectionRef = collection(db, "qna", questionId, "replies");
-        await addDoc(replyCollectionRef, {
-            ...replyData,
-            userName: displayName || values.userName,
-            isAdmin: userRole === 'admin' || userRole === 'superadmin',
-            createdAt: serverTimestamp(),
+    
+    const { questionId, ...replyData } = parsed.data;
+    const replyCollectionRef = collection(db, "qna", questionId, "replies");
+    const dataToAdd = {
+        ...replyData,
+        userName: displayName || values.userName,
+        isAdmin: userRole === 'admin' || userRole === 'superadmin',
+        createdAt: serverTimestamp(),
+    };
+    
+    addDoc(replyCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: replyCollectionRef.path,
+            operation: "create",
+            requestResourceData: dataToAdd
         });
-        return { success: true, message: "Reply posted successfully!" };
-    } catch (error) {
-        return { success: false, message: "Could not post your reply. Please try again." };
-    }
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: "Reply posted successfully!" };
 }
 
 // Schema for updating a user's role
@@ -567,13 +632,20 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
     return { success: false, message: "Admins cannot change their own role." };
   }
 
-  try {
-    const userRef = doc(db, "users", targetUserId);
-    await updateDoc(userRef, { role: newRole });
-    return { success: true, message: `User role updated to ${newRole}.`};
-  } catch (error) {
-    return { success: false, message: "Failed to update user role." };
-  }
+  const userRef = doc(db, "users", targetUserId);
+  const dataToUpdate = { role: newRole };
+  
+  updateDoc(userRef, dataToUpdate).catch((e: any) => {
+    const error = new FirestorePermissionError({
+        path: userRef.path,
+        operation: "update",
+        requestResourceData: dataToUpdate
+    });
+    errorEmitter.emit('permission-error', error);
+    return { success: false, message: e.message };
+  });
+
+  return { success: true, message: `User role updated to ${newRole}.`};
 }
 
 // Schema for QnA moderation
@@ -588,12 +660,16 @@ export async function deleteQuestion(values: z.infer<typeof qnaModSchema>) {
     if (!isAdmin) {
       return { success: false, message: "Permission denied." };
     }
-    try {
-        await deleteDoc(doc(db, "qna", values.questionId));
-        return { success: true, message: "Question deleted." };
-    } catch (error) {
-        return { success: false, message: "Failed to delete question." };
-    }
+    
+    const questionRef = doc(db, "qna", values.questionId);
+    
+    deleteDoc(questionRef).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: questionRef.path, operation: "delete" });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: "Question deleted." };
 }
 
 // Action to toggle pin status of a question
@@ -602,18 +678,26 @@ export async function togglePinQuestion(values: z.infer<typeof qnaModSchema>) {
     if (!isAdmin) {
         return { success: false, message: "Permission denied." };
     }
-    try {
-        const questionRef = doc(db, "qna", values.questionId);
-        const questionSnap = await getDoc(questionRef);
-        if (!questionSnap.exists()) {
-            return { success: false, message: "Question not found." };
-        }
-        const currentPinStatus = questionSnap.data()?.isPinned || false;
-        await updateDoc(questionRef, { isPinned: !currentPinStatus });
-        return { success: true, message: `Question ${!currentPinStatus ? 'pinned' : 'unpinned'}.` };
-    } catch (error) {
-        return { success: false, message: "Failed to update pin status." };
+
+    const questionRef = doc(db, "qna", values.questionId);
+    const questionSnap = await getDoc(questionRef);
+    if (!questionSnap.exists()) {
+        return { success: false, message: "Question not found." };
     }
+    const currentPinStatus = questionSnap.data()?.isPinned || false;
+    const dataToUpdate = { isPinned: !currentPinStatus };
+    
+    updateDoc(questionRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: questionRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+    
+    return { success: true, message: `Question ${!currentPinStatus ? 'pinned' : 'unpinned'}.` };
 }
 
 
@@ -679,20 +763,28 @@ export async function addAnnouncement(values: z.infer<typeof addAnnouncementSche
     if (!parsed.success) {
         return { success: false, message: "Invalid data provided." };
     }
-    try {
-        const userDocSnap = await getDoc(doc(db, "users", values.adminId));
-        const userData = userDocSnap.data();
-        
-        await addDoc(collection(db, "announcements"), {
-            ...parsed.data,
-            adminName: userData?.displayName || values.adminName,
-            adminRole: userData?.role || 'admin',
-            createdAt: serverTimestamp(),
+
+    const userDocSnap = await getDoc(doc(db, "users", values.adminId));
+    const userData = userDocSnap.data();
+    const announcementCollectionRef = collection(db, "announcements");
+    const dataToAdd = {
+        ...parsed.data,
+        adminName: userData?.displayName || values.adminName,
+        adminRole: userData?.role || 'admin',
+        createdAt: serverTimestamp(),
+    };
+    
+    addDoc(announcementCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: announcementCollectionRef.path,
+            operation: "create",
+            requestResourceData: dataToAdd
         });
-        return { success: true, message: "Announcement posted successfully!" };
-    } catch (error) {
-        return { success: false, message: "Could not post announcement." };
-    }
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+
+    return { success: true, message: "Announcement posted successfully!" };
 }
 
 const deleteAnnouncementSchema = z.object({
@@ -705,12 +797,19 @@ export async function deleteAnnouncement(values: z.infer<typeof deleteAnnounceme
     if (!isAdmin) {
       return { success: false, message: "Permission denied." };
     }
-    try {
-        await deleteDoc(doc(db, "announcements", values.announcementId));
-        return { success: true, message: "Announcement deleted." };
-    } catch (error) {
-        return { success: false, message: "Failed to delete announcement." };
-    }
+
+    const announcementRef = doc(db, "announcements", values.announcementId);
+
+    deleteDoc(announcementRef).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: announcementRef.path,
+            operation: "delete"
+        });
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+
+    return { success: true, message: "Announcement deleted." };
 }
 
 // Schema for ride cancellation
@@ -724,16 +823,24 @@ export async function cancelRegistration(values: z.infer<typeof cancelRegistrati
     if (!parsed.success) {
         return { success: false, message: "Invalid data provided." };
     }
-    try {
-        const registrationRef = doc(db, "registrations", values.registrationId);
-        await updateDoc(registrationRef, {
-            status: 'cancellation_requested',
-            cancellationReason: values.reason,
+    
+    const registrationRef = doc(db, "registrations", values.registrationId);
+    const dataToUpdate = {
+        status: 'cancellation_requested',
+        cancellationReason: values.reason,
+    };
+    
+    updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: registrationRef.path,
+            operation: "update",
+            requestResourceData: dataToUpdate
         });
-        return { success: true, message: "Your cancellation request has been submitted." };
-    } catch (error) {
-        return { success: false, message: "Could not submit your request. Please try again." };
-    }
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: e.message };
+    });
+
+    return { success: true, message: "Your cancellation request has been submitted." };
 }
 
 const forgotPasswordSchema = z.object({
@@ -771,18 +878,27 @@ export async function manageFaq(values: z.infer<typeof faqSchema> & { adminId: s
   const parsed = faqSchema.safeParse(data);
   if (!parsed.success) return { success: false, message: "Invalid data." };
 
-  try {
-    if (faqId) {
-      await updateDoc(doc(db, "faqs", faqId), parsed.data);
-      revalidatePath('/');
-      return { success: true, message: "FAQ item updated." };
-    } else {
-      await addDoc(collection(db, "faqs"), { ...parsed.data, createdAt: serverTimestamp() });
-      revalidatePath('/');
-      return { success: true, message: "FAQ item added." };
-    }
-  } catch (error) {
-    return { success: false, message: "Failed to manage FAQ item." };
+  if (faqId) {
+    const faqRef = doc(db, "faqs", faqId);
+    updateDoc(faqRef, parsed.data).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: faqRef.path, operation: "update", requestResourceData: parsed.data
+        });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "FAQ item updated." };
+  } else {
+    const faqCollectionRef = collection(db, "faqs");
+    const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
+    addDoc(faqCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({
+            path: faqCollectionRef.path, operation: "create", requestResourceData: dataToAdd
+        });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "FAQ item added." };
   }
 }
 
@@ -791,13 +907,15 @@ export async function deleteFaq(id: string, adminId: string) {
   if (!isAdmin) {
     return { success: false, message: "Permission denied." };
   }
-  try {
-    await deleteDoc(doc(db, "faqs", id));
-    revalidatePath('/');
-    return { success: true, message: "FAQ item deleted." };
-  } catch (error) {
-    return { success: false, message: "Failed to delete FAQ item." };
-  }
+  
+  const faqRef = doc(db, "faqs", id);
+  deleteDoc(faqRef).catch((e:any) => {
+    const error = new FirestorePermissionError({ path: faqRef.path, operation: "delete" });
+    errorEmitter.emit('permission-error', error);
+  });
+
+  revalidatePath('/');
+  return { success: true, message: "FAQ item deleted." };
 }
 
 
@@ -817,18 +935,23 @@ export async function manageSchedule(values: z.infer<typeof scheduleSchema> & { 
   const parsed = scheduleSchema.safeParse(data);
   if (!parsed.success) return { success: false, message: "Invalid data." };
 
-  try {
-    if (scheduleId) {
-      await updateDoc(doc(db, "schedule", scheduleId), parsed.data);
-      revalidatePath('/');
-      return { success: true, message: "Schedule item updated." };
-    } else {
-      await addDoc(collection(db, "schedule"), { ...parsed.data, createdAt: serverTimestamp() });
-      revalidatePath('/');
-      return { success: true, message: "Schedule item added." };
-    }
-  } catch (error) {
-    return { success: false, message: "Failed to manage schedule item." };
+  if (scheduleId) {
+    const scheduleRef = doc(db, "schedule", scheduleId);
+    updateDoc(scheduleRef, parsed.data).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: scheduleRef.path, operation: "update", requestResourceData: parsed.data });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "Schedule item updated." };
+  } else {
+    const scheduleCollectionRef = collection(db, "schedule");
+    const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
+    addDoc(scheduleCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: scheduleCollectionRef.path, operation: "create", requestResourceData: dataToAdd });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "Schedule item added." };
   }
 }
 
@@ -837,13 +960,15 @@ export async function deleteScheduleItem(id: string, adminId: string) {
   if (!isAdmin) {
     return { success: false, message: "Permission denied." };
   }
-  try {
-    await deleteDoc(doc(db, "schedule", id));
-    revalidatePath('/');
-    return { success: true, message: "Schedule item deleted." };
-  } catch (error) {
-    return { success: false, message: "Failed to delete schedule item." };
-  }
+  
+  const scheduleRef = doc(db, "schedule", id);
+  deleteDoc(scheduleRef).catch((e: any) => {
+    const error = new FirestorePermissionError({ path: scheduleRef.path, operation: "delete" });
+    errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/');
+  return { success: true, message: "Schedule item deleted." };
 }
 
 const organizerSchema = z.object({
@@ -866,27 +991,30 @@ export async function manageOrganizer(values: z.infer<typeof organizerSchema> & 
     return { success: false, message: "Invalid data." };
   }
 
-  try {
-    const dataToSave = { ...parsed.data };
-    
-    Object.keys(dataToSave).forEach((key) => {
-        if (dataToSave[key as keyof typeof dataToSave] === "") {
-            delete dataToSave[key as keyof typeof dataToSave];
-        }
+  const dataToSave = { ...parsed.data };
+  Object.keys(dataToSave).forEach((key) => {
+      if (dataToSave[key as keyof typeof dataToSave] === "") {
+          delete dataToSave[key as keyof typeof dataToSave];
+      }
+  });
+  
+  if (organizerId) {
+    const organizerRef = doc(db, "organizers", organizerId);
+    updateDoc(organizerRef, dataToSave).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: organizerRef.path, operation: "update", requestResourceData: dataToSave });
+        errorEmitter.emit('permission-error', error);
     });
-    
-    if (organizerId) {
-      await updateDoc(doc(db, "organizers", organizerId), dataToSave);
-      revalidatePath('/');
-      return { success: true, message: "Organizer updated." };
-    } else {
-      await addDoc(collection(db, "organizers"), { ...dataToSave, createdAt: serverTimestamp() });
-      revalidatePath('/');
-      return { success: true, message: "Organizer added." };
-    }
-  } catch (error) {
-    console.error("Error managing organizer:", error);
-    return { success: false, message: "Failed to manage organizer." };
+    revalidatePath('/');
+    return { success: true, message: "Organizer updated." };
+  } else {
+    const organizerCollectionRef = collection(db, "organizers");
+    const dataToAdd = { ...dataToSave, createdAt: serverTimestamp() };
+    addDoc(organizerCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: organizerCollectionRef.path, operation: "create", requestResourceData: dataToAdd });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "Organizer added." };
   }
 }
 
@@ -895,13 +1023,15 @@ export async function deleteOrganizer(id: string, adminId: string) {
   if (!isAdmin) {
     return { success: false, message: "Permission denied." };
   }
-  try {
-    await deleteDoc(doc(db, "organizers", id));
-    revalidatePath('/');
-    return { success: true, message: "Organizer deleted." };
-  } catch (error) {
-    return { success: false, message: "Failed to delete organizer." };
-  }
+  
+  const organizerRef = doc(db, "organizers", id);
+  deleteDoc(organizerRef).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: organizerRef.path, operation: "delete" });
+      errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/');
+  return { success: true, message: "Organizer deleted." };
 }
 
 
@@ -924,18 +1054,23 @@ export async function managePromotion(values: z.infer<typeof promotionSchema> & 
   const parsed = promotionSchema.safeParse(data);
   if (!parsed.success) return { success: false, message: "Invalid data." };
 
-  try {
-    if (promotionId) {
-      await updateDoc(doc(db, "promotions", promotionId), parsed.data);
-      revalidatePath('/');
-      return { success: true, message: "Promotion updated." };
-    } else {
-      await addDoc(collection(db, "promotions"), { ...parsed.data, createdAt: serverTimestamp() });
-      revalidatePath('/');
-      return { success: true, message: "Promotion added." };
-    }
-  } catch (error) {
-    return { success: false, message: "Failed to manage promotion." };
+  if (promotionId) {
+    const promotionRef = doc(db, "promotions", promotionId);
+    updateDoc(promotionRef, parsed.data).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: promotionRef.path, operation: "update", requestResourceData: parsed.data });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "Promotion updated." };
+  } else {
+    const promotionCollectionRef = collection(db, "promotions");
+    const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
+    addDoc(promotionCollectionRef, dataToAdd).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: promotionCollectionRef.path, operation: "create", requestResourceData: dataToAdd });
+        errorEmitter.emit('permission-error', error);
+    });
+    revalidatePath('/');
+    return { success: true, message: "Promotion added." };
   }
 }
 
@@ -944,13 +1079,15 @@ export async function deletePromotion(id: string, adminId: string) {
   if (!isAdmin) {
     return { success: false, message: "Permission denied." };
   }
-  try {
-    await deleteDoc(doc(db, "promotions", id));
-    revalidatePath('/');
-    return { success: true, message: "Promotion deleted." };
-  } catch (error) {
-    return { success: false, message: "Failed to delete promotion." };
-  }
+  
+  const promotionRef = doc(db, "promotions", id);
+  deleteDoc(promotionRef).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: promotionRef.path, operation: "delete" });
+      errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/');
+  return { success: true, message: "Promotion deleted." };
 }
 
 
@@ -974,14 +1111,15 @@ export async function manageLocation(values: z.infer<typeof locationSchema> & { 
 
   const parsed = locationSchema.safeParse(finalData);
   if (!parsed.success) return { success: false, message: "Invalid data." };
+  
+  const settingsRef = doc(db, "settings", "route");
+  setDoc(settingsRef, parsed.data).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: settingsRef.path, operation: "create", requestResourceData: parsed.data });
+      errorEmitter.emit('permission-error', error);
+  });
 
-  try {
-    await setDoc(doc(db, "settings", "route"), parsed.data);
-    revalidatePath('/');
-    return { success: true, message: "Route location updated successfully." };
-  } catch (error) {
-    return { success: false, message: "Failed to update location." };
-  }
+  revalidatePath('/');
+  return { success: true, message: "Route location updated successfully." };
 }
 
 const eventTimeSchema = z.object({
@@ -1002,16 +1140,16 @@ export async function manageEventTime(values: z.infer<typeof eventTimeSchema> & 
 
   const parsed = eventTimeSchema.safeParse(finalData);
   if (!parsed.success) return { success: false, message: "Invalid data." };
+  
+  const settingsRef = doc(db, "settings", "event");
+  const dataToUpdate = { startTime: parsed.data.eventDate };
+  setDoc(settingsRef, dataToUpdate, { merge: true }).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: dataToUpdate });
+      errorEmitter.emit('permission-error', error);
+  });
 
-  try {
-    await setDoc(doc(db, "settings", "event"), {
-      startTime: parsed.data.eventDate,
-    }, { merge: true });
-    revalidatePath('/');
-    return { success: true, message: "Event time updated successfully." };
-  } catch (error) {
-    return { success: false, message: "Failed to update event time." };
-  }
+  revalidatePath('/');
+  return { success: true, message: "Event time updated successfully." };
 }
 
 const generalSettingsSchema = z.object({
@@ -1027,14 +1165,15 @@ export async function manageGeneralSettings(values: z.infer<typeof generalSettin
   const parsed = generalSettingsSchema.safeParse(data);
   if (!parsed.success) return { success: false, message: "Invalid data." };
 
-  try {
-    await setDoc(doc(db, "settings", "event"), parsed.data, { merge: true });
-    revalidatePath('/');
-    revalidatePath('/register');
-    return { success: true, message: "Settings updated." };
-  } catch (error) {
-    return { success: false, message: "Failed to update settings." };
-  }
+  const settingsRef = doc(db, "settings", "event");
+  setDoc(settingsRef, parsed.data, { merge: true }).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
+      errorEmitter.emit('permission-error', error);
+  });
+
+  revalidatePath('/');
+  revalidatePath('/register');
+  return { success: true, message: "Settings updated." };
 }
 
 // === LOCATION PARTNER ACTIONS ===
@@ -1058,19 +1197,23 @@ export async function manageLocationPartner(values: z.infer<typeof locationPartn
     return { success: false, message: "Invalid data." };
   }
 
-  try {
-    if (partnerId) {
-      await updateDoc(doc(db, "locationPartners", partnerId), parsed.data);
+  if (partnerId) {
+      const partnerRef = doc(db, "locationPartners", partnerId);
+      updateDoc(partnerRef, parsed.data).catch((e: any) => {
+          const error = new FirestorePermissionError({ path: partnerRef.path, operation: "update", requestResourceData: parsed.data });
+          errorEmitter.emit('permission-error', error);
+      });
       revalidatePath('/');
       return { success: true, message: "Location partner updated." };
-    } else {
-      await addDoc(collection(db, "locationPartners"), { ...parsed.data, createdAt: serverTimestamp() });
+  } else {
+      const partnerCollectionRef = collection(db, "locationPartners");
+      const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
+      addDoc(partnerCollectionRef, dataToAdd).catch((e: any) => {
+          const error = new FirestorePermissionError({ path: partnerCollectionRef.path, operation: "create", requestResourceData: dataToAdd });
+          errorEmitter.emit('permission-error', error);
+      });
       revalidatePath('/');
       return { success: true, message: "Location partner added." };
-    }
-  } catch (error) {
-    console.error("Error managing location partner:", error);
-    return { success: false, message: "Failed to manage location partner." };
   }
 }
 
@@ -1079,13 +1222,15 @@ export async function deleteLocationPartner(id: string, adminId: string) {
   if (!isAdmin) {
     return { success: false, message: "Permission denied." };
   }
-  try {
-    await deleteDoc(doc(db, "locationPartners", id));
-    revalidatePath('/');
-    return { success: true, message: "Location partner deleted." };
-  } catch (error) {
-    return { success: false, message: "Failed to delete location partner." };
-  }
+  
+  const partnerRef = doc(db, "locationPartners", id);
+  deleteDoc(partnerRef).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: partnerRef.path, operation: "delete" });
+      errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/');
+  return { success: true, message: "Location partner deleted." };
 }
 
 // CERTIFICATE ACTIONS
@@ -1101,15 +1246,16 @@ export async function grantCertificate(values: z.infer<typeof certificateSchema>
     return { success: false, message: "Permission denied." };
   }
 
-  try {
-    const registrationRef = doc(db, "registrations", values.registrationId);
-    await updateDoc(registrationRef, { certificateGranted: true });
-    revalidatePath('/admin');
-    revalidatePath('/dashboard');
-    return { success: true, message: "Certificate granted to rider." };
-  } catch (error) {
-    return { success: false, message: "Failed to grant certificate." };
-  }
+  const registrationRef = doc(db, "registrations", values.registrationId);
+  const dataToUpdate = { certificateGranted: true };
+  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: registrationRef.path, operation: "update", requestResourceData: dataToUpdate });
+      errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  return { success: true, message: "Certificate granted to rider." };
 }
 
 export async function revokeCertificate(values: z.infer<typeof certificateSchema>) {
@@ -1118,15 +1264,16 @@ export async function revokeCertificate(values: z.infer<typeof certificateSchema
     return { success: false, message: "Permission denied." };
   }
 
-  try {
-    const registrationRef = doc(db, "registrations", values.registrationId);
-    await updateDoc(registrationRef, { certificateGranted: false });
-    revalidatePath('/admin');
-    revalidatePath('/dashboard');
-    return { success: true, message: "Certificate revoked." };
-  } catch (error) {
-    return { success: false, message: "Failed to revoke certificate." };
-  }
+  const registrationRef = doc(db, "registrations", values.registrationId);
+  const dataToUpdate = { certificateGranted: false };
+  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
+      const error = new FirestorePermissionError({ path: registrationRef.path, operation: "update", requestResourceData: dataToUpdate });
+      errorEmitter.emit('permission-error', error);
+  });
+  
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  return { success: true, message: "Certificate revoked." };
 }
 
 
@@ -1151,14 +1298,15 @@ export async function manageHomepageContent(values: z.infer<typeof homepageConte
     
     const parsed = homepageContentSchema.safeParse(data);
     if (!parsed.success) return { success: false, message: "Invalid data provided." };
+    
+    const settingsRef = doc(db, "settings", "event");
+    setDoc(settingsRef, parsed.data, { merge: true }).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
+        errorEmitter.emit('permission-error', error);
+    });
 
-    try {
-        await setDoc(doc(db, "settings", "event"), parsed.data, { merge: true });
-        revalidatePath('/');
-        return { success: true, message: "Homepage content updated successfully!" };
-    } catch (error) {
-        return { success: false, message: "Failed to update homepage content." };
-    }
+    revalidatePath('/');
+    return { success: true, message: "Homepage content updated successfully!" };
 }
 
 const homepageVisibilitySchema = z.object({
@@ -1175,12 +1323,13 @@ export async function manageHomepageVisibility(values: z.infer<typeof homepageVi
     
     const parsed = homepageVisibilitySchema.safeParse(data);
     if (!parsed.success) return { success: false, message: "Invalid data provided." };
+    
+    const settingsRef = doc(db, "settings", "event");
+    setDoc(settingsRef, parsed.data, { merge: true }).catch((e: any) => {
+        const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
+        errorEmitter.emit('permission-error', error);
+    });
 
-    try {
-        await setDoc(doc(db, "settings", "event"), parsed.data, { merge: true });
-        revalidatePath('/');
-        return { success: true, message: "Homepage section visibility updated." };
-    } catch (error) {
-        return { success: false, message: "Failed to update visibility settings." };
-    }
+    revalidatePath('/');
+    return { success: true, message: "Homepage section visibility updated." };
 }

@@ -3,6 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'RideRegister',
@@ -31,6 +32,7 @@ export default function RootLayout({
         >
             {children}
             <Toaster />
+            <FirebaseErrorListener />
         </ThemeProvider>
       </body>
     </html>
