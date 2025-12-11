@@ -637,21 +637,24 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
     console.log(`[Action] Organizer user created successfully. UID: ${user.uid}`);
     
     const userRef = doc(db, "users", user.uid);
-    console.log(`[Action] Saving organizer user profile to 'users/${user.uid}'...`);
-    await setDoc(userRef, {
+    const userData = {
         email: user.email,
         displayName: name,
-        role: 'user',
+        role: 'user' as const,
         photoURL: null,
         createdAt: serverTimestamp(),
         accessRequest: {
           requestedAt: serverTimestamp(),
-          status: 'pending_review',
+          status: 'pending_review' as const,
         }
-    });
-    console.log("[Action] Organizer user profile and access request saved.");
+    };
+
+    console.log(`[Action] Saving organizer user profile to 'users/${user.uid}'...`, userData);
+    await setDoc(userRef, userData);
+    console.log("[Action] Organizer user profile and access request saved successfully.");
 
     return { success: true, message: "Your account has been created and your request has been submitted. An admin will review it shortly.", uid: user.uid };
+
   } catch (error: any) {
     console.error("[Action] An error occurred in createAndRequestOrganizerAccess:", error);
     if (error.code === 'auth/email-already-in-use') {
@@ -661,6 +664,8 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
             message: "An account with this email already exists. Please log in and request access from your dashboard.",
         };
     }
+    // For other errors, including potential Firestore errors.
+    console.error("[Action] Full error object:", JSON.stringify(error, null, 2));
     return { success: false, message: "Failed to create account or submit your request." };
   }
 }
@@ -1124,7 +1129,7 @@ export async function manageGeneralSettings(values: z.infer<typeof generalSettin
     return { success: false, message: "Permission denied." };
   }
   const parsed = generalSettingsSchema.safeParse(data);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) return { success: false, message: "Invalid data provided." };
 
   const settingsRef = doc(db, "settings", "event");
   setDoc(settingsRef, parsed.data, { merge: true }).catch((e: any) => {
