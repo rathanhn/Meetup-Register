@@ -620,7 +620,7 @@ const requestOrganizerAccessSchema = z.object({
 });
 
 export async function createAndRequestOrganizerAccess(values: z.infer<typeof requestOrganizerAccessSchema>) {
-  console.log("[Action] Starting createAndRequestOrganizerAccess with values:", values);
+  console.log("[Action] Starting createAndRequestOrganizerAccess. Values:", values);
   const parsed = requestOrganizerAccessSchema.safeParse(values);
   if (!parsed.success) {
     console.error("[Action] Organizer Zod validation failed:", parsed.error.flatten());
@@ -649,10 +649,17 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
         }
     };
 
-    console.log(`[Action] Saving organizer user profile to 'users/${user.uid}'...`, userData);
-    await setDoc(userRef, userData);
-    console.log("[Action] Organizer user profile and access request saved successfully.");
+    console.log(`[Action] Attempting to save organizer profile to 'users/${user.uid}' with data:`, userData);
+    try {
+        await setDoc(userRef, userData);
+        console.log("[Action] Organizer user profile and access request saved successfully.");
+    } catch (firestoreError: any) {
+        console.error("[Action] Firestore setDoc failed:", firestoreError);
+        // This is the critical error we need to catch and report
+        return { success: false, message: `Failed to save user profile: ${firestoreError.message}` };
+    }
 
+    console.log("[Action] User profile creation complete. Returning success.");
     return { success: true, message: "Your account has been created and your request has been submitted. An admin will review it shortly.", uid: user.uid };
 
   } catch (error: any) {
