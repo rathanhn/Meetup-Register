@@ -28,7 +28,7 @@ import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
-import { getRedirectResult, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const phoneRegex = new RegExp(
   /^([+]?[\s0-9]+)?(\d{3}|[(]?[0-9]+[)])?([-]?[\s]?[0-9])+$/
@@ -108,7 +108,7 @@ export function RegistrationForm() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(true);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -153,46 +153,37 @@ export function RegistrationForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        await signInWithRedirect(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        form.reset({
+            ...form.getValues(),
+            email: user.email || '',
+            fullName: user.displayName || '',
+            password: 'temp-password-from-google',
+            confirmPassword: 'temp-password-from-google',
+        });
+
+        if (user.photoURL) {
+            setPhotoPreview(user.photoURL);
+        }
+
+        toast({
+            title: "Google Account Linked!",
+            description: "Please fill in the rest of your registration details.",
+        });
+
     } catch (e: any) {
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
             description: e.message?.replace('Firebase: ', ''),
         });
+    } finally {
         setIsGoogleLoading(false);
     }
   }
 
-  useEffect(() => {
-    const handleGoogleRedirect = async () => {
-        try {
-            const result = await getRedirectResult(auth);
-            if (result && result.user) {
-                const { user } = result;
-                form.reset({
-                    ...form.getValues(),
-                    email: user.email || '',
-                    fullName: user.displayName || '',
-                    password: 'temp-password', // Prefill for validation
-                    confirmPassword: 'temp-password',
-                });
-                if (user.photoURL) {
-                    setPhotoPreview(user.photoURL);
-                }
-                 toast({
-                    title: "Google Account Linked!",
-                    description: "Please fill in the rest of your registration details.",
-                });
-            }
-        } catch (error) {
-             console.error("Error handling Google redirect:", error);
-        } finally {
-            setIsGoogleLoading(false);
-        }
-    }
-    handleGoogleRedirect();
-  }, [form, toast]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsProcessing(true);

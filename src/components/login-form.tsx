@@ -22,7 +22,7 @@ import { auth, db } from '@/lib/firebase';
 import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import { useRouter } from "next/navigation";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { getRedirectResult, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -49,7 +49,6 @@ export function LoginForm() {
   ] = useSignInWithEmailAndPassword(auth);
   
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,7 +58,7 @@ export function LoginForm() {
     },
   });
 
-  const isSubmitting = loading || googleLoading || isProcessingRedirect;
+  const isSubmitting = loading || googleLoading;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     await signInWithEmailAndPassword(values.email, values.password);
@@ -70,40 +69,6 @@ export function LoginForm() {
       router.push('/dashboard');
     }
   }, [user, router]);
-  
-  useEffect(() => {
-    const processRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          const user = result.user;
-          const userRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userRef);
-
-          if (!userDoc.exists()) {
-              await setDoc(userRef, {
-                  email: user.email,
-                  displayName: user.displayName || user.email?.split('@')[0],
-                  role: 'user',
-                  photoURL: user.photoURL,
-                  createdAt: serverTimestamp(),
-              });
-          }
-          // The user object is now available from the hook, so the above useEffect will trigger redirect
-        }
-      } catch (error: any) {
-        console.error("Error processing redirect result:", error);
-         toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description: error.message?.replace('Firebase: ', ''),
-        });
-      } finally {
-        setIsProcessingRedirect(false);
-      }
-    };
-    processRedirectResult();
-  }, [toast]);
   
   useEffect(() => {
     if (error) {
@@ -119,29 +84,32 @@ export function LoginForm() {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        await signInWithRedirect(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        // Ensure user document exists in Firestore
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+            await setDoc(userRef, {
+                email: user.email,
+                displayName: user.displayName || user.email?.split('@')[0],
+                role: 'user',
+                photoURL: user.photoURL,
+                createdAt: serverTimestamp(),
+            });
+        }
+        // Successful sign-in will be caught by the `useAuthState` hook which redirects to dashboard
     } catch(e: any) {
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
             description: e.message?.replace('Firebase: ', ''),
         });
+    } finally {
         setGoogleLoading(false);
     }
-  }
-
-  if (isProcessingRedirect) {
-    return (
-        <Card className="w-full">
-            <CardHeader>
-                <CardTitle className="font-headline text-2xl">Welcome Back</CardTitle>
-                <CardDescription>Sign in to access your dashboard and ticket.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center items-center h-48">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-        </Card>
-    )
   }
 
   return (
