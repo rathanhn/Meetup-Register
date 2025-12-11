@@ -166,6 +166,7 @@ export function RegistrationForm() {
 
         if (user.photoURL) {
             setPhotoPreview(user.photoURL);
+            form.setValue('photoURL', user.photoURL, { shouldValidate: true });
         }
 
         toast({
@@ -174,11 +175,13 @@ export function RegistrationForm() {
         });
 
     } catch (e: any) {
-        toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description: e.message?.replace('Firebase: ', ''),
-        });
+        if (e.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: "destructive",
+                title: "Google Sign-In Failed",
+                description: e.message?.replace('Firebase: ', ''),
+            });
+        }
     } finally {
         setIsGoogleLoading(false);
     }
@@ -199,9 +202,9 @@ export function RegistrationForm() {
             const { url, error } = await uploadResponse.json();
             if (error || !url) throw new Error(error || 'Failed to upload photo.');
             finalPhotoUrl = url;
-        } else if (typeof photoPreview === 'string' && photoPreview.startsWith('http')) {
+        } else if (typeof values.photoURL === 'string' && values.photoURL.startsWith('http')) {
             // Use the photo from Google if it exists and wasn't replaced
-            finalPhotoUrl = photoPreview;
+            finalPhotoUrl = values.photoURL;
         }
       
       const submissionData = { ...values, photoURL: finalPhotoUrl };
@@ -258,7 +261,7 @@ export function RegistrationForm() {
             
             <h3 className="text-lg font-medium text-primary">Account Details</h3>
             <div className="grid grid-cols-1 gap-2">
-                <Button variant="outline" className="w-full" disabled={isProcessing || isGoogleLoading} onClick={handleGoogleSignIn}>
+                <Button variant="outline" className="w-full" disabled={isProcessing || isGoogleLoading} onClick={handleGoogleSignIn} type="button">
                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
                     Continue with Google
                 </Button>
@@ -325,19 +328,19 @@ export function RegistrationForm() {
                     <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
                       <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl><RadioGroupItem value="bike" id="bike" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                        <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
                             <Bike className="mb-3 h-6 w-6" /> Bike
                         </FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl><RadioGroupItem value="jeep" id="jeep" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                        <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
                            <Tractor className="mb-3 h-6 w-6" /> Jeep
                         </FormLabel>
                       </FormItem>
                        <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl><RadioGroupItem value="car" id="car" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                        <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
                            <Car className="mb-3 h-6 w-6" /> Car
                         </FormLabel>
                       </FormItem>
