@@ -25,25 +25,29 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { LocationPartnerCard } from "@/components/location-partner-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function Home() {
-  const [eventSettings, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const [eventSettingsDoc, loading, error] = useDocument(doc(db, 'settings', 'event'));
 
-  const targetDate = useMemo(() => {
-    if (loading || error || !eventSettings?.exists()) {
-      // Return a default date if not loaded or set
-      return new Date("2025-08-15T06:00:00");
+  const eventSettings = useMemo(() => {
+    if (loading || error || !eventSettingsDoc?.exists()) {
+      return {
+        startTime: new Date("2025-08-15T06:00:00"),
+        registrationsOpen: true,
+        showSchedule: true,
+        showReviews: true,
+        showOrganizers: true,
+        showPromotions: true,
+      } as EventSettings;
     }
-    const data = eventSettings.data() as EventSettings;
-    if (data.startTime instanceof Timestamp) {
-      return data.startTime.toDate();
-    }
-    // Fallback for older data format or just in case
-    return new Date(data.startTime);
-  }, [eventSettings, loading, error]);
-
-  const registrationsOpen = eventSettings?.data()?.registrationsOpen ?? true;
+    const data = eventSettingsDoc.data() as EventSettings;
+    return {
+      ...data,
+      startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
+    };
+  }, [eventSettingsDoc, loading, error]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -56,9 +60,9 @@ export default function Home() {
           </p>
         </div>
       </div>
-      <CountdownTimer targetDate={targetDate} />
+      <CountdownTimer targetDate={eventSettings.startTime} />
       <main className="flex-grow container mx-auto p-4 md:p-8 space-y-8">
-        {!registrationsOpen && (
+        {!eventSettings.registrationsOpen && !loading && (
           <Alert variant="destructive" className="border-2">
             <Info className="h-4 w-4" />
             <AlertTitle className="font-bold text-lg">Registration is Closed</AlertTitle>
@@ -73,7 +77,24 @@ export default function Home() {
             </AlertDescription>
           </Alert>
         )}
-        <Hero registrationsOpen={registrationsOpen}/>
+
+        {loading ? (
+            <div className="rounded-lg bg-card shadow-lg overflow-hidden p-12 space-y-4">
+                <Skeleton className="h-10 w-3/4 mx-auto" />
+                <Skeleton className="h-6 w-full max-w-2xl mx-auto" />
+                <Skeleton className="h-64 w-full max-w-xl mx-auto" />
+                 <div className="flex justify-center gap-4">
+                    <Skeleton className="h-12 w-32" />
+                    <Skeleton className="h-12 w-32" />
+                </div>
+            </div>
+        ) : (
+             <Hero 
+                registrationsOpen={eventSettings.registrationsOpen ?? true}
+                settings={eventSettings}
+            />
+        )}
+       
         <RegisteredRiders />
         
         <Card className="bg-primary/5 border-primary/20">
@@ -92,11 +113,11 @@ export default function Home() {
         </Card>
         
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <EventSchedule />
+            {eventSettings.showSchedule && <EventSchedule />}
             <RouteMap />
         </div>
         
-        <Organizers />
+        {eventSettings.showOrganizers && <Organizers />}
         
         <LocationPartnerCard />
         
@@ -110,12 +131,12 @@ export default function Home() {
                 <Faq />
             </div>
             <div className="md:col-span-3 lg:col-span-1 flex flex-col gap-8">
-                <GoogleReviews />
-                <StoreDetails />
+                {eventSettings.showReviews && <GoogleReviews />}
+                {eventSettings.showOrganizers && <StoreDetails />}
             </div>
         </div>
         
-        <Offers />
+        {eventSettings.showPromotions && <Offers />}
 
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm">

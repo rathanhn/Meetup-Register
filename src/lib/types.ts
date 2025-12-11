@@ -1,4 +1,5 @@
 
+
 export interface FaqItem {
   id: string;
   question: string;
@@ -46,16 +47,11 @@ export interface LocationPartner {
   createdAt: any; // Firestore timestamp
 }
 
-export interface StuntPerformer {
-  id:string;
-  name: string;
-  role: string;
-  imageUrl: string;
-  imageHint: string;
-  contactNumber?: string;
-  createdAt: any; // Firestore timestamp
+export interface Perk {
+  title: string;
+  description: string;
+  icon: string;
 }
-
 
 export interface ScheduleEvent {
     id: string;
@@ -74,7 +70,23 @@ export interface LocationSettings {
 export interface EventSettings {
   startTime: any; // Firestore timestamp
   registrationsOpen?: boolean;
+  // Homepage content settings
+  showSchedule?: boolean;
+  showReviews?: boolean;
+  showOrganizers?: boolean;
+  showPromotions?: boolean;
+  heroTitle?: string;
+  heroDescription?: string;
+  heroImageUrl?: string;
+  heroImageHint?: string;
+  perk1Title?: string;
+  perk1Description?: string;
+  perk2Title?: string;
+  perk2Description?: string;
+  perk3Title?: string;
+  perk3Description?: string;
 }
+
 
 export interface Registration {
     id: string;
