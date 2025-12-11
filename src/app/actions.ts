@@ -619,18 +619,24 @@ const requestOrganizerAccessSchema = z.object({
 });
 
 export async function createAndRequestOrganizerAccess(values: z.infer<typeof requestOrganizerAccessSchema>) {
+  console.log("[Action] Starting createAndRequestOrganizerAccess with values:", values);
   const parsed = requestOrganizerAccessSchema.safeParse(values);
   if (!parsed.success) {
+    console.error("[Action] Organizer Zod validation failed:", parsed.error.flatten());
     return { success: false, message: "Invalid data provided." };
   }
+  console.log("[Action] Organizer Zod validation successful.");
 
   const { email, password } = parsed.data;
 
   try {
+    console.log(`[Action] Attempting to create organizer user with email: ${email}`);
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+    console.log(`[Action] Organizer user created successfully. UID: ${user.uid}`);
     
     const userRef = doc(db, "users", user.uid);
+    console.log(`[Action] Saving organizer user profile to 'users/${user.uid}'...`);
     await setDoc(userRef, {
         email: user.email,
         displayName: user.email?.split('@')[0],
@@ -642,10 +648,13 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
           status: 'pending_review',
         }
     });
+    console.log("[Action] Organizer user profile and access request saved.");
 
     return { success: true, message: "Your account has been created and your request has been submitted. An admin will review it shortly.", uid: user.uid };
   } catch (error: any) {
+    console.error("[Action] An error occurred in createAndRequestOrganizerAccess:", error);
     if (error.code === 'auth/email-already-in-use') {
+        console.warn(`[Action] Email ${email} is already in use.`);
         return { 
             success: false, 
             message: "An account with this email already exists. Please log in and request access from your dashboard.",
