@@ -664,6 +664,47 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
   }
 }
 
+// New action for existing users to request access
+const requestAccessSchema = z.object({
+  userId: z.string().min(1, "User ID is required."),
+});
+
+export async function requestOrganizerAccess(values: z.infer<typeof requestAccessSchema>) {
+  console.log("[Action] Starting requestOrganizerAccess for user:", values.userId);
+  const userRef = doc(db, 'users', values.userId);
+  
+  try {
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) {
+      return { success: false, message: "User profile not found." };
+    }
+    if (userDoc.data()?.accessRequest) {
+      return { success: false, message: "You have already submitted a request." };
+    }
+
+    const dataToUpdate = {
+      accessRequest: {
+        requestedAt: serverTimestamp(),
+        status: 'pending_review',
+      }
+    };
+
+    await updateDoc(userRef, dataToUpdate);
+    console.log("[Action] Access request field added for user:", values.userId);
+    revalidatePath('/dashboard');
+    return { success: true, message: "Your request for organizer access has been submitted." };
+  } catch (e: any) {
+    console.error("[Action] Error in requestOrganizerAccess:", e);
+    const error = new FirestorePermissionError({
+        path: userRef.path,
+        operation: "update",
+        requestResourceData: { accessRequest: { status: 'pending_review' } }
+    });
+    errorEmitter.emit('permission-error', error);
+    return { success: false, message: "Failed to submit your request." };
+  }
+}
+
 
 // === ANNOUNCEMENT ACTIONS ===
 

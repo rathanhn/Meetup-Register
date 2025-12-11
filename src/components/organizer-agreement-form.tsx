@@ -23,6 +23,7 @@ import { auth } from "@/lib/firebase";
 import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { Separator } from "./ui/separator";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email("A valid email is required."),
@@ -101,14 +102,14 @@ export function OrganizerAgreementForm() {
       <CardHeader>
         <CardTitle className="font-headline text-3xl">Organizer Access Request</CardTitle>
         <CardDescription>
-          Create an account and request access to event management tools. Your request will be reviewed by an admin.
+          Create a new account to request access to event management tools. If you already have an account, please <Link href="/login" className="text-primary underline">log in</Link> and request access from your dashboard.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-             <h3 className="text-lg font-medium text-primary flex items-center gap-2"><UserCheck /> Account Details</h3>
+             <h3 className="text-lg font-medium text-primary flex items-center gap-2"><UserCheck /> New Account Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={form.control}

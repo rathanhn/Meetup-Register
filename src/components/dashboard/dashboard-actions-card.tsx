@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { Registration, AppUser } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Ban, Loader2, Send, UserPlus } from "lucide-react";
+import { Gift, Ban, Loader2, Send, UserPlus, Shield } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,11 +21,11 @@ import { Textarea } from '../ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
-import { cancelRegistration } from '@/app/actions';
+import { cancelRegistration, requestOrganizerAccess } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { AddCoRiderForm } from './add-co-rider-form';
 import Link from 'next/link';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 
 interface DashboardActionsCardProps {
     registration: Registration | null;
@@ -39,6 +39,7 @@ const cancelSchema = z.object({
 export function DashboardActionsCard({ registration, user }: DashboardActionsCardProps) {
     const { toast } = useToast();
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isRequestingAccess, setIsRequestingAccess] = useState(false);
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [isAddCoRiderOpen, setIsAddCoRiderOpen] = useState(false);
 
@@ -64,9 +65,22 @@ export function DashboardActionsCard({ registration, user }: DashboardActionsCar
         }
         setIsCancelling(false);
     }
+
+    const handleAccessRequest = async () => {
+        if (!user) return;
+        setIsRequestingAccess(true);
+        const result = await requestOrganizerAccess({ userId: user.id });
+        if (result.success) {
+            toast({ title: "Success", description: result.message });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        }
+        setIsRequestingAccess(false);
+    }
     
     const canCancel = registration && (registration.status === 'approved' || registration.status === 'pending');
-    const canAddCoRider = registration && registration.status === 'approved' && registration.registrationType === 'solo';
+    const canRequestAccess = user && !user.accessRequest && user.role === 'user';
+
 
     return (
         <Card>
@@ -75,24 +89,18 @@ export function DashboardActionsCard({ registration, user }: DashboardActionsCar
                 <CardDescription>Other event-related actions are available here.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 {canAddCoRider && (
-                    <>
-                        <div className="p-4 border rounded-md flex items-center justify-between">
-                             <div>
-                                <h4 className="font-semibold flex items-center gap-2"><UserPlus className="text-primary"/> Add a Co-Rider</h4>
-                                <p className="text-sm text-muted-foreground">Upgrade your solo registration to a duo.</p>
-                            </div>
-                            <Button onClick={() => setIsAddCoRiderOpen(true)}>
-                                Add Co-Rider
-                            </Button>
+                 {canRequestAccess && (
+                    <div className="p-4 border rounded-md flex items-center justify-between">
+                        <div>
+                            <h4 className="font-semibold flex items-center gap-2"><Shield className="text-primary"/> Become an Organizer</h4>
+                            <p className="text-sm text-muted-foreground">Request access to the event admin tools.</p>
                         </div>
-                        <AddCoRiderForm 
-                            isOpen={isAddCoRiderOpen}
-                            setIsOpen={setIsAddCoRiderOpen}
-                            registrationId={registration.id}
-                        />
-                    </>
-                 )}
+                        <Button onClick={handleAccessRequest} disabled={isRequestingAccess}>
+                            {isRequestingAccess ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Request Access
+                        </Button>
+                    </div>
+                )}
 
 
                 <div className="p-4 border rounded-md flex items-center justify-between">
