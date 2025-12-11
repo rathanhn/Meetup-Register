@@ -202,54 +202,6 @@ export async function updateRegistrationDetails(values: EditRegistrationInput) {
     return { success: true, message: "Rider details updated successfully." };
 }
 
-
-// Schema for adding a co-rider
-const addCoRiderSchema = z.object({
-  registrationId: z.string().min(1, "Registration ID is required."),
-  fullName2: z.string().min(2, "Full name must be at least 2 characters."),
-  age2: z.coerce.number().min(18, "Rider must be at least 18 years old.").max(100),
-  phoneNumber2: z.string().regex(phoneRegex, "Invalid phone number."),
-  photoURL2: z.string().url("A valid photo URL is required."),
-});
-
-export async function addCoRider(values: z.infer<typeof addCoRiderSchema>) {
-    const parsed = addCoRiderSchema.safeParse(values);
-    if (!parsed.success) {
-        return { success: false, message: "Invalid data provided." };
-    }
-
-    try {
-        const { registrationId, ...coRiderData } = parsed.data;
-        const registrationRef = doc(db, "registrations", registrationId);
-        
-        // Check if user is already a duo
-        const regDoc = await getDoc(registrationRef);
-        if (regDoc.exists() && regDoc.data().registrationType === 'duo') {
-            return { success: false, message: "This registration is already for a duo." };
-        }
-
-        updateDoc(registrationRef, {
-            ...coRiderData,
-            registrationType: 'duo',
-        }).catch((e: any) => {
-             const error = new FirestorePermissionError({
-                path: registrationRef.path,
-                operation: "update",
-                requestResourceData: coRiderData
-            })
-            errorEmitter.emit('permission-error', error);
-            return { success: false, message: e.message };
-        });
-
-        revalidatePath('/dashboard');
-        return { success: true, message: "Co-rider added successfully! Your registration is now a duo." };
-
-    } catch (error) {
-        return { success: false, message: "Could not add co-rider. Please try again." };
-    }
-}
-
-
 // Schema for updating a registration status
 const updateStatusSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),

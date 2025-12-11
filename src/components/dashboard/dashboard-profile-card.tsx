@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Phone, Calendar, Ticket, Bike, Tractor, Car } from "lucide-react";
 import { useState } from "react";
-import { AddCoRiderForm } from "./add-co-rider-form";
 
 interface DashboardProfileCardProps {
     user: AppUser | null;
@@ -59,7 +58,7 @@ export function DashboardProfileCard({ user, registration }: DashboardProfileCar
                     </div>
                 ) : (
                    <div className="space-y-2 text-center text-muted-foreground border-t pt-4">
-                        <p>You haven&apos;t registered for the ride yet.</p>
+                        <p>You haven't registered for the ride yet.</p>
                    </div>
                 )}
             </CardContent>

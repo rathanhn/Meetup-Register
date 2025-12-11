@@ -9,7 +9,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { addCoRider } from "@/app/actions";
 import { Loader2, User, Upload } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";

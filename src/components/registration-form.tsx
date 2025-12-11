@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
-import { Loader2, PartyPopper, User, Users, Upload } from "lucide-react";
+import { Loader2, PartyPopper, User, Upload, Bike, Tractor, Car } from "lucide-react";
 import { createAccountAndRegisterRider } from "@/app/actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "./ui/separator";
@@ -27,8 +27,8 @@ import { auth, db } from "@/lib/firebase";
 import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-
+import { doc, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
+import { getRedirectResult, GoogleAuthProvider, signInWithRedirect } from "firebase/auth";
 
 const phoneRegex = new RegExp(
   /^([+]?[\s0-9]+)?(\d{3}|[(]?[0-9]+[)])?([-]?[\s]?[0-9])+$/
@@ -40,7 +40,7 @@ const rideRules = [
     { id: 'rule3', text: "Maintain a safe distance from other riders." },
     { id: 'rule4', text: "No racing or dangerous stunts are allowed." },
     { id: 'rule5', text: "Follow instructions from event organizers at all times." },
-    { id: 'rule6', text: "Ensure your bicycle is in good working condition." },
+    { id: 'rule6', text: "Ensure your vehicle is in good working condition." },
     { id: 'rule7', text: "Riders are recommended to wear necessary gear like a jacket, shoes, and suitable pants." }
 ];
 
@@ -50,8 +50,8 @@ const formSchema = z
     password: z.string().min(6, "Password must be at least 6 characters."),
     confirmPassword: z.string().min(6, "Password must be at least 6 characters."),
     
-    registrationType: z.enum(["solo", "duo"], {
-      required_error: "You need to select a registration type.",
+    registrationType: z.enum(["bike", "jeep", "car"], {
+      required_error: "You need to select a vehicle type.",
     }),
     fullName: z.string().min(2, "Full name must be at least 2 characters."),
     age: z.coerce.number().min(18, "You must be at least 18 years old.").max(100),
@@ -59,13 +59,6 @@ const formSchema = z
     whatsappNumber: z.string().optional(),
     photoURL: z.any().optional(),
 
-    // Rider 2
-    fullName2: z.string().optional(),
-    age2: z.coerce.number().optional(),
-    phoneNumber2: z.string().optional(),
-    photoURL2: z.any().optional(),
-    
-    // Individual rule consents
     rule1: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
     rule2: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
     rule3: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
@@ -83,18 +76,6 @@ const formSchema = z
         path: ["confirmPassword"],
       });
     }
-
-    if (data.registrationType === "duo") {
-      if (!data.fullName2 || data.fullName2.length < 2) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Full name must be at least 2 characters.", path: ["fullName2"] });
-      }
-      if (!data.age2 || data.age2 < 18) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Rider must be at least 18 years old.", path: ["age2"] });
-      }
-      if (!data.phoneNumber2 || !phoneRegex.test(data.phoneNumber2)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid phone number.", path: ["phoneNumber2"] });
-      }
-    }
   });
 
 
@@ -108,6 +89,14 @@ const fileToDataUri = (file: File) => {
     });
 };
 
+const GoogleIcon = () => (
+    <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
+        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
+        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path>
+        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path>
+        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.082 5.571l6.19 5.238C42.021 35.591 44 30.134 44 24c0-1.341-.138-2.65-.389-3.917z"></path>
+    </svg>
+)
 
 export function RegistrationForm() {
   const { toast } = useToast();
@@ -115,20 +104,17 @@ export function RegistrationForm() {
   const [signInWithEmailAndPassword, , , signInError] = useSignInWithEmailAndPassword(auth);
   const [sameAsPhone, setSameAsPhone] = useState(false);
   
-  const [photoPreview1, setPhotoPreview1] = useState<string | null>(null);
-  const photoInputRef1 = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const [photoPreview2, setPhotoPreview2] = useState<string | null>(null);
-  const photoInputRef2 = useRef<HTMLInputElement>(null);
-  
   const [isProcessing, setIsProcessing] = useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: "onChange",
     defaultValues: {
-      registrationType: "solo",
+      registrationType: "bike",
       email: "",
       password: "",
       confirmPassword: "",
@@ -147,7 +133,6 @@ export function RegistrationForm() {
   });
 
   const { isSubmitting } = form.formState;
-  const registrationType = form.watch("registrationType");
   const phoneNumber = form.watch("phoneNumber");
 
   useEffect(() => {
@@ -155,65 +140,58 @@ export function RegistrationForm() {
       form.setValue("whatsappNumber", phoneNumber, { shouldValidate: true });
     }
   }, [sameAsPhone, phoneNumber, form]);
-  
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>, rider: 1 | 2) => {
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (rider === 1) {
-        setPhotoPreview1(URL.createObjectURL(file));
+        setPhotoPreview(URL.createObjectURL(file));
         form.setValue('photoURL', file, { shouldValidate: true });
-      } else {
-        setPhotoPreview2(URL.createObjectURL(file));
-        form.setValue('photoURL2', file, { shouldValidate: true });
-      }
     }
   };
   
-  const startFilePolling = (rider: 1 | 2) => {
-    if (pollingRef.current) {
-        clearInterval(pollingRef.current);
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+        await signInWithRedirect(auth, provider);
+    } catch (e: any) {
+        toast({
+            variant: "destructive",
+            title: "Google Sign-In Failed",
+            description: e.message?.replace('Firebase: ', ''),
+        });
+        setIsGoogleLoading(false);
     }
+  }
 
-    const inputRef = rider === 1 ? photoInputRef1 : photoInputRef2;
-    let attempts = 0;
-    const maxAttempts = 25; // 5 seconds
-
-    pollingRef.current = setInterval(() => {
-        if (inputRef.current?.files?.length) {
-            const file = inputRef.current.files[0];
-            if (rider === 1) {
-                setPhotoPreview1(URL.createObjectURL(file));
-                form.setValue('photoURL', file, { shouldValidate: true });
-            } else {
-                setPhotoPreview2(URL.createObjectURL(file));
-                form.setValue('photoURL2', file, { shouldValidate: true });
-            }
-            if (pollingRef.current) clearInterval(pollingRef.current);
-        }
-
-        attempts++;
-        if (attempts > maxAttempts && pollingRef.current) {
-            clearInterval(pollingRef.current);
-        }
-    }, 200);
-  };
-  
   useEffect(() => {
-    // Cleanup interval on component unmount
-    return () => {
-        if (pollingRef.current) {
-            clearInterval(pollingRef.current);
+    const handleGoogleRedirect = async () => {
+        try {
+            const result = await getRedirectResult(auth);
+            if (result && result.user) {
+                const { user } = result;
+                form.setValue('email', user.email || '');
+                form.setValue('fullName', user.displayName || '');
+                if (user.photoURL) {
+                    setPhotoPreview(user.photoURL);
+                    // We don't set photoURL in the form here, as it's not a file.
+                    // We will handle this URL on submission.
+                }
+            }
+        } catch (error) {
+             console.error("Error handling Google redirect:", error);
+        } finally {
+            setIsGoogleLoading(false);
         }
-    };
+    }
+    handleGoogleRedirect();
   }, []);
-
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsProcessing(true);
 
     try {
-        let finalPhotoUrl1: string | undefined = undefined;
-        let finalPhotoUrl2: string | undefined = undefined;
+        let finalPhotoUrl: string | undefined = undefined;
 
         if (values.photoURL && values.photoURL instanceof File) {
             const dataUri = await fileToDataUri(values.photoURL);
@@ -221,21 +199,14 @@ export function RegistrationForm() {
                 method: 'POST', body: JSON.stringify({ file: dataUri }), headers: { 'Content-Type': 'application/json' },
             });
             const { url, error } = await uploadResponse.json();
-            if (error || !url) throw new Error(error || 'Failed to upload photo 1.');
-            finalPhotoUrl1 = url;
-        }
-
-        if (registrationType === 'duo' && values.photoURL2 && values.photoURL2 instanceof File) {
-            const dataUri = await fileToDataUri(values.photoURL2);
-            const uploadResponse = await fetch('/api/upload', {
-                method: 'POST', body: JSON.stringify({ file: dataUri }), headers: { 'Content-Type': 'application/json' },
-            });
-            const { url, error } = await uploadResponse.json();
-            if (error || !url) throw new Error(error || 'Failed to upload photo 2.');
-            finalPhotoUrl2 = url;
+            if (error || !url) throw new Error(error || 'Failed to upload photo.');
+            finalPhotoUrl = url;
+        } else if (typeof photoPreview === 'string' && photoPreview.startsWith('http')) {
+            // Use the photo from Google if it exists and wasn't replaced
+            finalPhotoUrl = photoPreview;
         }
       
-      const submissionData = { ...values, photoURL: finalPhotoUrl1, photoURL2: finalPhotoUrl2 };
+      const submissionData = { ...values, photoURL: finalPhotoUrl };
 
       const result = await createAccountAndRegisterRider(submissionData);
       
@@ -288,6 +259,17 @@ export function RegistrationForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
             <h3 className="text-lg font-medium text-primary">Account Details</h3>
+            <div className="grid grid-cols-1 gap-2">
+                <Button variant="outline" className="w-full" disabled={isProcessing || isGoogleLoading} onClick={handleGoogleSignIn}>
+                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
+                    Continue with Google
+                </Button>
+            </div>
+             <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or with an email</span></div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <FormField
                     control={form.control}
@@ -333,26 +315,32 @@ export function RegistrationForm() {
             </div>
             
             <Separator />
-            <h3 className="text-lg font-medium text-primary">Ride &amp; Rider Details</h3>
+            <h3 className="text-lg font-medium text-primary">Participant Details</h3>
             
             <FormField
               control={form.control}
               name="registrationType"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>Registration Type</FormLabel>
+                  <FormLabel>Vehicle Type</FormLabel>
                   <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-4">
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
                       <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="solo" id="solo" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="solo" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary w-full cursor-pointer">
-                            <User className="mb-3 h-6 w-6" /> Solo Rider
+                        <FormControl><RadioGroupItem value="bike" id="bike" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                            <Bike className="mb-3 h-6 w-6" /> Bike
                         </FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="duo" id="duo" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="duo" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary w-full cursor-pointer">
-                           <Users className="mb-3 h-6 w-6" /> Duo (2 Riders)
+                        <FormControl><RadioGroupItem value="jeep" id="jeep" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                           <Tractor className="mb-3 h-6 w-6" /> Jeep
+                        </FormLabel>
+                      </FormItem>
+                       <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="car" id="car" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                           <Car className="mb-3 h-6 w-6" /> Car
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -362,33 +350,30 @@ export function RegistrationForm() {
               )}
             />
             
-            <Separator />
-            <h3 className="text-lg font-medium">Rider 1 Information</h3>
-            
             <FormItem>
-              <FormLabel>Profile Photo (Rider 1)</FormLabel>
+              <FormLabel>Profile Photo</FormLabel>
               <FormControl>
                   <div className="flex items-center gap-4">
                       <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
-                        {photoPreview1 ? (
-                            <Image src={photoPreview1} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
+                        {photoPreview ? (
+                            <Image src={photoPreview} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
                         ) : (
                             <User className="w-10 h-10 text-muted-foreground" />
                         )}
                       </div>
-                      <Button type="button" variant="outline" onClick={() => { photoInputRef1.current?.click(); startFilePolling(1); }} disabled={isSubmitting || isProcessing}>
+                      <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click() } disabled={isSubmitting || isProcessing}>
                          <Upload className="mr-2 h-4 w-4" /> Change Photo
                       </Button>
                       <Input
                         type="file"
                         className="hidden"
-                        ref={photoInputRef1}
-                        onChange={(e) => handlePhotoChange(e, 1)}
+                        ref={photoInputRef}
+                        onChange={handlePhotoChange}
                         accept="image/png, image/jpeg, image/heic, image/heif"
                       />
                   </div>
               </FormControl>
-              <FormDescription>Upload a clear photo. This will be on your ticket.</FormDescription>
+              <FormDescription>Upload a clear photo of yourself. This will appear on your digital ticket.</FormDescription>
               <FormMessage />
             </FormItem>
 
@@ -427,45 +412,6 @@ export function RegistrationForm() {
                 </div>
             </div>
 
-
-            {registrationType === "duo" && (
-                <>
-                    <Separator />
-                    <h3 className="text-lg font-medium">Rider 2 Information</h3>
-                     <FormItem>
-                        <FormLabel>Profile Photo (Rider 2)</FormLabel>
-                        <FormControl>
-                            <div className="flex items-center gap-4">
-                                <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
-                                    {photoPreview2 ? (
-                                        <Image src={photoPreview2} alt="Rider 2 preview" width={96} height={96} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <User className="w-10 h-10 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <Button type="button" variant="outline" onClick={() => { photoInputRef2.current?.click(); startFilePolling(2); }} disabled={isSubmitting || isProcessing}>
-                                    <Upload className="mr-2 h-4 w-4" /> Upload Photo
-                                </Button>
-                                <Input
-                                    type="file"
-                                    className="hidden"
-                                    ref={photoInputRef2}
-                                    onChange={(e) => handlePhotoChange(e, 2)}
-                                    accept="image/png, image/jpeg, image/heic, image/heif"
-                                />
-                            </div>
-                        </FormControl>
-                        <FormDescription>Upload a clear photo of the second rider.</FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                    <FormField control={form.control} name="fullName2" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Jane Smith" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField control={form.control} name="age2" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" placeholder="18" onChange={e => field.onChange(e.target.value === '' ? undefined : +e.target.value)} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="phoneNumber2" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="9876543210" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </div>
-                </>
-            )}
-
             <div className="space-y-4">
                 <div className="space-y-2 rounded-md border p-4">
                     <h4 className="font-medium text-base">General Ride Rules &amp; Consent</h4>
@@ -497,7 +443,7 @@ export function RegistrationForm() {
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting || !form.formState.isValid || isProcessing}>
               {(isSubmitting || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isProcessing ? "Submitting..." : "Create Account &amp; Register"}
+              {isProcessing ? "Submitting..." : "Create Account & Register"}
             </Button>
           </form>
         </Form>

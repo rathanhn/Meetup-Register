@@ -165,24 +165,16 @@ export function RegistrationsTable() {
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex -space-x-4">
-                                            <Avatar>
-                                                <AvatarImage src={reg.photoURL} alt={reg.fullName} />
-                                                <AvatarFallback><User /></AvatarFallback>
-                                            </Avatar>
-                                            {reg.registrationType === 'duo' && (
-                                                 <Avatar>
-                                                    <AvatarImage src={reg.photoURL2} alt={reg.fullName2} />
-                                                    <AvatarFallback><User /></AvatarFallback>
-                                                </Avatar>
-                                            )}
-                                        </div>
+                                        <Avatar>
+                                            <AvatarImage src={reg.photoURL} alt={reg.fullName} />
+                                            <AvatarFallback><User /></AvatarFallback>
+                                        </Avatar>
                                         <div>
-                                            <p className="font-semibold">{reg.fullName}{reg.registrationType === 'duo' ? ` & ${reg.fullName2}` : ''}</p>
+                                            <p className="font-semibold">{reg.fullName}</p>
                                             <p className="text-sm text-muted-foreground">{reg.phoneNumber}</p>
                                         </div>
                                     </div>
-                                    <Badge variant={reg.registrationType === 'duo' ? 'default' : 'secondary'} className="capitalize mt-1">{reg.registrationType}</Badge>
+                                    <Badge variant='secondary' className="capitalize mt-1">{reg.registrationType}</Badge>
                                 </div>
                                 {isSuperAdmin && (
                                     <div className="flex justify-end gap-2 pt-2 border-t">
@@ -219,22 +211,14 @@ export function RegistrationsTable() {
                         pendingRegistrations.map((reg) => (
                         <TableRow key={reg.id}>
                             <TableCell>
-                                <div className="flex -space-x-4">
-                                    <Avatar>
-                                        <AvatarImage src={reg.photoURL} alt={reg.fullName} />
-                                        <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
-                                    </Avatar>
-                                     {reg.registrationType === 'duo' && (
-                                         <Avatar>
-                                            <AvatarImage src={reg.photoURL2} alt={reg.fullName2} />
-                                            <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                </div>
+                                <Avatar>
+                                    <AvatarImage src={reg.photoURL} alt={reg.fullName} />
+                                    <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                                </Avatar>
                             </TableCell>
-                            <TableCell className="font-medium">{reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}</TableCell>
+                            <TableCell className="font-medium">{reg.fullName}</TableCell>
                             <TableCell>
-                            <Badge variant={reg.registrationType === 'duo' ? 'default' : 'secondary'} className="capitalize">
+                            <Badge variant='secondary' className="capitalize">
                                 {reg.registrationType}
                             </Badge>
                             </TableCell>
@@ -306,7 +290,7 @@ export function RegistrationsTable() {
                     ) : cancellationRequests.length > 0 ? (
                         cancellationRequests.map((reg) => (
                         <TableRow key={reg.id}>
-                            <TableCell className="font-medium">{reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}</TableCell>
+                            <TableCell className="font-medium">{reg.fullName}</TableCell>
                             <TableCell className="text-muted-foreground max-w-sm truncate">{reg.cancellationReason}</TableCell>
                             <TableCell className="text-right">
                                 {!isSuperAdmin ? (
