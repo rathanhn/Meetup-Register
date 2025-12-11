@@ -31,7 +31,7 @@ export default function PublicTicketPage() {
     const [registration, setRegistration] = useState<Registration | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isDownloading, setIsDownloading] = useState<number | null>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -67,12 +67,12 @@ export default function PublicTicketPage() {
         fetchTicket();
     }, [id]);
     
-    const handleDownload = async (riderNumber: 1 | 2) => {
-        const ticketId = `ticket-${riderNumber}`;
+    const handleDownload = async () => {
+        const ticketId = `ticket-1`;
         const node = document.getElementById(ticketId);
         if (!node || !registration) return;
 
-        setIsDownloading(riderNumber);
+        setIsDownloading(true);
 
         try {
             await document.fonts.ready;
@@ -92,13 +92,13 @@ export default function PublicTicketPage() {
             
             pdf.addImage(dataUrl, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
             
-            const riderName = riderNumber === 1 ? registration.fullName : registration.fullName2;
+            const riderName = registration.fullName;
             pdf.save(`${riderName}-ticket.pdf`);
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Download Failed', 'description': 'Could not download the ticket.' });
         } finally {
-            setIsDownloading(null);
+            setIsDownloading(false);
         }
     }
 
@@ -108,23 +108,12 @@ export default function PublicTicketPage() {
 
         return (
             <div className="space-y-4">
-                <SingleTicket id="ticket-1" registration={registration} riderNumber={1} />
-                {registration.registrationType === 'duo' && (
-                     <div className="mt-4">
-                        <SingleTicket id="ticket-2" registration={registration} riderNumber={2} />
-                    </div>
-                )}
+                <SingleTicket id="ticket-1" registration={registration} />
                  <div className="w-full flex flex-col gap-2 pt-2">
-                    <Button onClick={() => handleDownload(1)} variant="outline" className="w-full" disabled={isDownloading === 1}>
-                        {isDownloading === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
-                        Download Ticket{registration.registrationType === 'duo' ? ' (Rider 1)' : ''}
+                    <Button onClick={handleDownload} variant="outline" className="w-full" disabled={isDownloading}>
+                        {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
+                        Download Ticket
                     </Button>
-                    {registration.registrationType === 'duo' && (
-                        <Button onClick={() => handleDownload(2)} variant="outline" className="w-full" disabled={isDownloading === 2}>
-                            {isDownloading === 2 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
-                            Download Ticket (Rider 2)
-                        </Button>
-                    )}
                 </div>
             </div>
         )

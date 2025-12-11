@@ -70,12 +70,6 @@ const registrationFormSchema = z
     whatsappNumber: z.string().optional(),
     photoURL: z.string().url().optional(),
     
-    // Rider 2 (for duo)
-    fullName2: z.string().optional(),
-    age2: z.coerce.number().optional(),
-    phoneNumber2: z.string().optional(),
-    photoURL2: z.string().url().optional(),
-    
     // Individual rule consents
     rule1: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
     rule2: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
@@ -85,8 +79,8 @@ const registrationFormSchema = z
     rule6: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
     rule7: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
 
-    registrationType: z.enum(["solo", "duo"], {
-      required_error: "You need to select a registration type.",
+    registrationType: z.enum(["bike", "jeep", "car"], {
+      required_error: "You need to select a vehicle type.",
     }),
   })
   .superRefine((data, ctx) => {
@@ -96,30 +90,6 @@ const registrationFormSchema = z
         message: "Passwords do not match.",
         path: ["confirmPassword"],
       });
-    }
-
-    if (data.registrationType === "duo") {
-      if (!data.fullName2 || data.fullName2.length < 2) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Full name must be at least 2 characters.",
-          path: ["fullName2"],
-        });
-      }
-      if (!data.age2 || data.age2 < 18) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Rider must be at least 18 years old.",
-          path: ["age2"],
-        });
-      }
-      if (!data.phoneNumber2 || !phoneRegex.test(data.phoneNumber2)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Invalid phone number.",
-          path: ["phoneNumber2"],
-        });
-      }
     }
   });
 
@@ -192,28 +162,9 @@ const editRegistrationFormSchema = z
     age: z.coerce.number().min(18, "You must be at least 18 years old.").max(100),
     phoneNumber: z.string().regex(phoneRegex, "Invalid phone number."),
     photoURL: z.string().url().optional(),
-    
-    fullName2: z.string().optional(),
-    age2: z.coerce.number().optional(),
-    phoneNumber2: z.string().optional(),
-    photoURL2: z.string().url().optional(),
-    
-    registrationType: z.enum(["solo", "duo"]),
+    registrationType: z.enum(["bike", "jeep", "car"]),
   })
-  .superRefine((data, ctx) => {
-    if (data.registrationType === "duo") {
-      if (!data.fullName2 || data.fullName2.length < 2) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Full name must be at least 2 characters.", path: ["fullName2"], });
-      }
-      if (!data.age2 || data.age2 < 18) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Rider must be at least 18 years old.", path: ["age2"], });
-      }
-      if (!data.phoneNumber2 || !phoneRegex.test(data.phoneNumber2)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid phone number.", path: ["phoneNumber2"], });
-      }
-    }
-  });
-
+ 
 
 type EditRegistrationInput = z.infer<typeof editRegistrationFormSchema> & {
     registrationId: string;
@@ -377,7 +328,6 @@ export async function deleteRegistration(values: z.infer<typeof deleteRegistrati
 // Schema for checking in a rider
 const checkInSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
-  riderNumber: z.coerce.number().min(1).max(2),
   adminId: z.string().min(1, "Admin ID is required."),
 });
 
@@ -393,10 +343,9 @@ export async function checkInRider(values: z.infer<typeof checkInSchema>) {
         return { success: false, message: "Invalid data provided for check-in." };
     }
     
-    const { registrationId, riderNumber } = parsed.data;
+    const { registrationId } = parsed.data;
     const registrationRef = doc(db, "registrations", registrationId);
-    const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
-    const dataToUpdate = { [fieldToUpdate]: true };
+    const dataToUpdate = { rider1CheckedIn: true };
     
     updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
         const error = new FirestorePermissionError({
@@ -408,13 +357,12 @@ export async function checkInRider(values: z.infer<typeof checkInSchema>) {
         return { success: false, message: e.message };
     });
     
-    return { success: true, message: `Rider ${riderNumber} checked in successfully.` };
+    return { success: true, message: `Rider checked in successfully.` };
 }
 
 // Schema for marking a rider as finished
 const finishRiderSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
-  riderNumber: z.coerce.number().min(1).max(2),
   adminId: z.string().min(1, "Admin ID is required."),
 });
 
@@ -430,10 +378,9 @@ export async function finishRider(values: z.infer<typeof finishRiderSchema>) {
         return { success: false, message: "Invalid data provided for finishing." };
     }
 
-    const { registrationId, riderNumber } = parsed.data;
+    const { registrationId } = parsed.data;
     const registrationRef = doc(db, "registrations", registrationId);
-    const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
-    const dataToUpdate = { [fieldToUpdate]: true };
+    const dataToUpdate = { rider1Finished: true };
 
     updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
         const error = new FirestorePermissionError({
@@ -445,13 +392,12 @@ export async function finishRider(values: z.infer<typeof finishRiderSchema>) {
         return { success: false, message: e.message };
     });
     
-    return { success: true, message: `Rider ${riderNumber} marked as finished!` };
+    return { success: true, message: `Rider marked as finished!` };
 }
 
 // Schema for reverting a rider's check-in
 const revertCheckInSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
-  riderNumber: z.coerce.number().min(1).max(2),
   adminId: z.string().min(1, "Admin ID is required."),
 });
 
@@ -463,10 +409,9 @@ export async function revertCheckIn(values: z.infer<typeof revertCheckInSchema>)
     const parsed = revertCheckInSchema.safeParse(values);
     if (!parsed.success) return { success: false, message: "Invalid data for check-in reversal." };
     
-    const { registrationId, riderNumber } = parsed.data;
+    const { registrationId } = parsed.data;
     const registrationRef = doc(db, "registrations", registrationId);
-    const fieldToUpdate = riderNumber === 1 ? 'rider1CheckedIn' : 'rider2CheckedIn';
-    const dataToUpdate = { [fieldToUpdate]: false };
+    const dataToUpdate = { rider1CheckedIn: false };
     
     updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
         const error = new FirestorePermissionError({
@@ -478,13 +423,12 @@ export async function revertCheckIn(values: z.infer<typeof revertCheckInSchema>)
         return { success: false, message: e.message };
     });
     
-    return { success: true, message: `Rider ${riderNumber} check-in has been reverted.` };
+    return { success: true, message: `Rider check-in has been reverted.` };
 }
 
 // Schema for reverting a rider's finish status
 const revertFinishSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
-  riderNumber: z.coerce.number().min(1).max(2),
   adminId: z.string().min(1, "Admin ID is required."),
 });
 
@@ -496,10 +440,9 @@ export async function revertFinish(values: z.infer<typeof revertFinishSchema>) {
     const parsed = revertFinishSchema.safeParse(values);
     if (!parsed.success) return { success: false, message: "Invalid data for finish reversal." };
 
-    const { registrationId, riderNumber } = parsed.data;
+    const { registrationId } = parsed.data;
     const registrationRef = doc(db, "registrations", registrationId);
-    const fieldToUpdate = riderNumber === 1 ? 'rider1Finished' : 'rider2Finished';
-    const dataToUpdate = { [fieldToUpdate]: false };
+    const dataToUpdate = { rider1Finished: false };
     
     updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
         const error = new FirestorePermissionError({
@@ -511,7 +454,7 @@ export async function revertFinish(values: z.infer<typeof revertFinishSchema>) {
         return { success: false, message: e.message };
     });
     
-    return { success: true, message: `Rider ${riderNumber} finish status has been reverted.` };
+    return { success: true, message: `Rider finish status has been reverted.` };
 }
 
 // Schema for adding a question

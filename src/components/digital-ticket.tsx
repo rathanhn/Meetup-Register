@@ -4,7 +4,7 @@
 import type { User } from 'firebase/auth';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Bike, CheckCircle, Users, User as UserIcon, AlertTriangle, Calendar, Clock, MapPin, Sparkles, Clipboard, Eye, Loader2, Download, Instagram, Share2 } from 'lucide-react';
+import { Bike, CheckCircle, Users, User as UserIcon, AlertTriangle, Calendar, Clock, MapPin, Sparkles, Clipboard, Eye, Loader2, Download, Instagram, Tractor, Car } from 'lucide-react';
 import type { Registration } from '@/lib/types';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -27,7 +27,6 @@ interface DigitalTicketProps {
 interface SingleTicketProps {
   id: string;
   registration: Registration;
-  riderNumber: 1 | 2;
   userEmail?: string | null;
 }
 
@@ -53,17 +52,26 @@ const generateQrCodeUrl = (text: string) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(text)}`;
 }
 
-export function SingleTicket({ id, registration, riderNumber }: SingleTicketProps) {
-  const isDuo = registration.registrationType === 'duo';
-  const riderName = riderNumber === 1 ? registration.fullName : registration.fullName2;
-  const riderPhone = riderNumber === 1 ? registration.phoneNumber : registration.phoneNumber2;
-  const isCheckedIn = riderNumber === 1 ? registration.rider1CheckedIn : registration.rider2CheckedIn;
-  const photoUrl = riderNumber === 1 ? registration.photoURL : registration.photoURL2;
+const VehicleIcon = ({ type }: { type: Registration['registrationType'] }) => {
+    switch (type) {
+        case 'bike': return <Bike className="h-4 w-4" />;
+        case 'jeep': return <Tractor className="h-4 w-4" />;
+        case 'car': return <Car className="h-4 w-4" />;
+        default: return <UserIcon className="h-4 w-4" />;
+    }
+}
+
+
+export function SingleTicket({ id, registration }: SingleTicketProps) {
+  const riderName = registration.fullName;
+  const riderPhone = registration.phoneNumber;
+  const isCheckedIn = registration.rider1CheckedIn;
+  const photoUrl = registration.photoURL;
   const { settings, loading } = useEventSettings();
 
   const qrData = JSON.stringify({
     registrationId: registration.id,
-    rider: riderNumber,
+    rider: 1, // Always rider 1 now
   });
 
   return (
@@ -117,9 +125,9 @@ export function SingleTicket({ id, registration, riderNumber }: SingleTicketProp
             
              <div className="grid grid-cols-2 gap-x-8 pt-2">
                  <div className="text-center">
-                    <p className="font-semibold text-muted-foreground text-xs">Reg. Type</p>
+                    <p className="font-semibold text-muted-foreground text-xs">Vehicle Type</p>
                     <div className="flex items-center gap-1 mt-1 justify-center">
-                        {registration.registrationType === 'solo' ? <Bike className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                        <VehicleIcon type={registration.registrationType} />
                         <h4 className="font-semibold capitalize">{registration.registrationType}</h4>
                     </div>
                  </div>
@@ -145,7 +153,7 @@ export function SingleTicket({ id, registration, riderNumber }: SingleTicketProp
 }
 
 
-function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, registration: Registration }) {
+function TicketActions({ registration }: { registration: Registration }) {
     const { toast } = useToast();
     const [isDownloading, setIsDownloading] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
@@ -173,7 +181,7 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
     };
 
     const handleDownload = async () => {
-        const ticketId = `ticket-${riderNumber}`;
+        const ticketId = `ticket-1`;
         const node = document.getElementById(ticketId);
         if (!node) return;
 
@@ -187,7 +195,7 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
             
             pdf.addImage(dataUrl, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
             
-            const riderName = riderNumber === 1 ? registration.fullName : registration.fullName2;
+            const riderName = registration.fullName;
             pdf.save(`${riderName}-ticket.pdf`);
         } catch (e) {
             console.error(e);
@@ -198,7 +206,7 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
     }
 
     const handleShare = async () => {
-        const ticketId = `ticket-${riderNumber}`; 
+        const ticketId = `ticket-1`; 
         const node = document.getElementById(ticketId);
         if (!node) return;
         
@@ -207,7 +215,7 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
         try {
             const dataUrl = await generateImageDataUrl(node);
             const blob = await (await fetch(dataUrl)).blob();
-            const riderName = riderNumber === 1 ? registration.fullName : registration.fullName2;
+            const riderName = registration.fullName;
             const file = new File([blob], `${riderName}-event-ticket.png`, { type: blob.type });
 
             if (isShareApiSupported && navigator.canShare({ files: [file] })) {
@@ -243,7 +251,7 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
         <div className="w-full text-center p-4 border-2 border-dashed border-primary/50 rounded-lg bg-secondary/30 space-y-3">
              <h4 className="font-bold text-lg flex items-center justify-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                Actions for {registration.registrationType === 'duo' ? `Rider ${riderNumber}` : 'your Ticket'}
+                Actions for your Ticket
              </h4>
              <p className="text-sm text-muted-foreground">
                 Save your ticket for offline access or share it with friends!
@@ -284,28 +292,12 @@ export function DigitalTicket({ registration, user }: DigitalTicketProps) {
            <CarouselItem>
               <div className="p-1">
                  <div className="space-y-4">
-                    <SingleTicket id="ticket-1" registration={registration} riderNumber={1} />
-                    <TicketActions registration={registration} riderNumber={1}/>
+                    <SingleTicket id="ticket-1" registration={registration} />
+                    <TicketActions registration={registration}/>
                 </div>
               </div>
             </CarouselItem>
-           {registration.registrationType === 'duo' && (
-             <CarouselItem>
-              <div className="p-1">
-                 <div className="space-y-4">
-                    <SingleTicket id="ticket-2" registration={registration} riderNumber={2} />
-                    <TicketActions registration={registration} riderNumber={2}/>
-                </div>
-              </div>
-            </CarouselItem>
-           )}
         </CarouselContent>
-         {registration.registrationType === 'duo' && (
-            <>
-                <CarouselPrevious className="left-[-10px] sm:left-[-20px] h-8 w-8" />
-                <CarouselNext className="right-[-10px] sm:right-[-20px] h-8 w-8" />
-            </>
-         )}
       </Carousel>
 
       <div className="max-w-sm mx-auto">

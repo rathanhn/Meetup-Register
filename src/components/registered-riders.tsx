@@ -48,16 +48,8 @@ export function RegisteredRiders() {
         id: `${rider.id}-1`,
         name: rider.fullName,
         photo: rider.photoURL,
-        type: rider.registrationType === 'duo' ? 'Duo Rider' : 'Solo Rider'
+        type: rider.registrationType
       });
-      if (rider.registrationType === 'duo' && rider.fullName2) {
-        participants.push({
-          id: `${rider.id}-2`,
-          name: rider.fullName2,
-          photo: rider.photoURL2,
-          type: 'Duo Co-rider'
-        });
-      }
     });
     return participants;
   }, [registrations]);
@@ -74,7 +66,7 @@ export function RegisteredRiders() {
   return (
     <Card>
        <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold font-headline">Our Registered Riders ({allParticipants.length})</CardTitle>
+            <CardTitle className="text-2xl font-bold font-headline">Our Registered Participants ({allParticipants.length})</CardTitle>
        </CardHeader>
        <CardContent>
           <Carousel
@@ -113,13 +105,13 @@ export function RegisteredRiders() {
           <div className="text-center mt-4">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button variant="outline">View All Riders</Button>
+                    <Button variant="outline">View All Participants</Button>
                 </SheetTrigger>
                 <SheetContent side="right">
                     <SheetHeader>
-                        <SheetTitle>All Registered Riders</SheetTitle>
+                        <SheetTitle>All Registered Participants</SheetTitle>
                         <SheetDescription>
-                            Here are all the amazing riders who have joined the event.
+                            Here are all the amazing people who have joined the event.
                         </SheetDescription>
                     </SheetHeader>
                     <ScrollArea className="h-[calc(100vh-8rem)] mt-4 pr-4">
@@ -132,7 +124,7 @@ export function RegisteredRiders() {
                                     </Avatar>
                                     <div>
                                         <p className="text-sm font-semibold">{rider.name}</p>
-                                        <p className="text-xs text-muted-foreground">{rider.type}</p>
+                                        <p className="text-xs text-muted-foreground capitalize">{rider.type}</p>
                                     </div>
                                 </div>
                             ))}

@@ -33,7 +33,7 @@ type FinishedParticipant = {
     name: string;
     phone: string;
     photoUrl?: string;
-    type: 'Solo' | 'Duo (Rider 1)' | 'Duo (Rider 2)';
+    type: Registration['registrationType'];
     certificateGranted?: boolean;
 }
 
@@ -82,7 +82,6 @@ export function FinishersListTable() {
       const reg = { id: doc.id, ...doc.data() } as Registration;
       if (reg.status !== 'approved') return;
 
-      // Both riders of a duo registration share the same certificate status.
       if (reg.rider1Finished) {
           participants.push({
               id: `${reg.id}-1`,
@@ -90,18 +89,7 @@ export function FinishersListTable() {
               name: reg.fullName,
               phone: reg.phoneNumber,
               photoUrl: reg.photoURL,
-              type: reg.registrationType === 'solo' ? 'Solo' : 'Duo (Rider 1)',
-              certificateGranted: reg.certificateGranted,
-          });
-      }
-      if (reg.rider2Finished && reg.fullName2 && reg.phoneNumber2) {
-           participants.push({
-              id: `${reg.id}-2`,
-              registrationId: reg.id,
-              name: reg.fullName2,
-              phone: reg.phoneNumber2,
-              photoUrl: reg.photoURL2,
-              type: 'Duo (Rider 2)',
+              type: reg.registrationType,
               certificateGranted: reg.certificateGranted,
           });
       }
@@ -211,7 +199,7 @@ export function FinishersListTable() {
                                 <div>
                                     <p className="font-semibold">{p.name}</p>
                                     <p className="text-sm text-muted-foreground">{p.phone}</p>
-                                    <Badge variant="secondary" className="mt-1">{p.type}</Badge>
+                                    <Badge variant="secondary" className="mt-1 capitalize">{p.type}</Badge>
                                 </div>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
@@ -235,7 +223,7 @@ export function FinishersListTable() {
                     </Card>
                 ))
             ) : (
-                <div className="text-center py-10 text-muted-foreground">{searchTerm ? 'No finishers match your search.' : 'No riders have finished yet.'}</div>
+                <div className="text-center py-10 text-muted-foreground">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</div>
             )}
         </div>
 
@@ -276,7 +264,7 @@ export function FinishersListTable() {
                     </TableRow>
                     ))
                 ) : (
-                    <TableRow><TableCell colSpan={4} className="text-center h-24">{searchTerm ? 'No finishers match your search.' : 'No riders have finished yet.'}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center h-24">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</TableCell></TableRow>
                 )}
                 </TableBody>
             </Table>

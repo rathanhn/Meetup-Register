@@ -16,6 +16,8 @@ import { Loader2, User as UserIcon, Upload, Save } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Separator } from "../ui/separator";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Bike, Car, Tractor } from "lucide-react";
 
 const phoneRegex = new RegExp(
   /^([+]?[\s0-9]+)?(\d{3}|[(]?[0-9]+[)])?([-]?[\s]?[0-9])+$/
@@ -26,13 +28,7 @@ const formSchema = z.object({
   age: z.coerce.number().min(18, "You must be at least 18 years old.").max(100),
   phoneNumber: z.string().regex(phoneRegex, "Invalid phone number."),
   photoURL: z.string().url().optional(),
-  
-  fullName2: z.string().optional(),
-  age2: z.coerce.number().optional(),
-  phoneNumber2: z.string().optional(),
-  photoURL2: z.string().url().optional(),
-  
-  registrationType: z.enum(["solo", "duo"]),
+  registrationType: z.enum(["bike", "jeep", "car"]),
 });
 
 interface EditRegistrationFormProps {
@@ -61,10 +57,6 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
   const photoInputRef1 = useRef<HTMLInputElement>(null);
   const [photoPreview1, setPhotoPreview1] = useState<string | null>(null);
   const [isUploading1, setIsUploading1] = useState(false);
-
-  const photoInputRef2 = useRef<HTMLInputElement>(null);
-  const [photoPreview2, setPhotoPreview2] = useState<string | null>(null);
-  const [isUploading2, setIsUploading2] = useState(false);
   
 
   useEffect(() => {
@@ -72,25 +64,19 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
         form.reset({
             ...registration,
             age: registration.age,
-            age2: registration.age2 || undefined,
         });
         setPhotoPreview1(registration.photoURL || null);
-        setPhotoPreview2(registration.photoURL2 || null);
     }
   }, [registration, form, isOpen]);
 
   const { isSubmitting } = form.formState;
 
-  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>, rider: 1 | 2) => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const setUploading = rider === 1 ? setIsUploading1 : setIsUploading2;
-    const setPreview = rider === 1 ? setPhotoPreview1 : setPhotoPreview2;
-    const fieldName = rider === 1 ? 'photoURL' : 'photoURL2';
-    
-    setUploading(true);
-    setPreview(URL.createObjectURL(file));
+    setIsUploading1(true);
+    setPhotoPreview1(URL.createObjectURL(file));
 
     try {
       const dataUri = await fileToDataUri(file);
@@ -103,14 +89,13 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
       if (error || !url) {
           throw new Error(error || 'Failed to upload photo.');
       }
-      form.setValue(fieldName, url, { shouldValidate: true });
-      setPreview(url);
+      form.setValue('photoURL', url, { shouldValidate: true });
+      setPhotoPreview1(url);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Upload Failed', description: (e as Error).message });
-      const originalUrl = rider === 1 ? registration?.photoURL : registration?.photoURL2;
-      setPreview(originalUrl || null);
+      setPhotoPreview1(registration?.photoURL || null);
     } finally {
-      setUploading(false);
+      setIsUploading1(false);
     }
   };
 
@@ -131,8 +116,7 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
     }
   };
   
-  const registrationType = form.watch("registrationType");
-  const isUploading = isUploading1 || isUploading2;
+  const isUploading = isUploading1;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -140,14 +124,14 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
         <DialogHeader>
           <DialogTitle>Edit Registration</DialogTitle>
           <DialogDescription>
-            Update rider information for: <span className="font-semibold">{registration?.fullName}</span>
+            Update participant information for: <span className="font-semibold">{registration?.fullName}</span>
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
-             <h3 className="text-md font-semibold text-primary">Rider 1 Information</h3>
+             <h3 className="text-md font-semibold text-primary">Participant Information</h3>
              <FormItem>
-              <FormLabel>Profile Photo (Rider 1)</FormLabel>
+              <FormLabel>Profile Photo</FormLabel>
               <FormControl>
                   <div className="flex items-center gap-4">
                       <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
@@ -161,7 +145,7 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
                       </Button>
                       <Input
                         type="file" className="hidden" ref={photoInputRef1}
-                        onChange={(e) => handlePhotoChange(e, 1)}
+                        onChange={handlePhotoChange}
                         accept="image/png, image/jpeg" disabled={isUploading}
                       />
                   </div>
@@ -175,42 +159,39 @@ export function EditRegistrationForm({ isOpen, setIsOpen, registration, user }: 
                 <FormField control={form.control} name="age" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="phoneNumber" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
-
-            {registrationType === 'duo' && (
-                <>
-                    <Separator />
-                    <h3 className="text-md font-semibold text-primary">Rider 2 Information</h3>
-                    <FormItem>
-                        <FormLabel>Profile Photo (Rider 2)</FormLabel>
-                        <FormControl>
-                            <div className="flex items-center gap-4">
-                                <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
-                                    {photoPreview2 ? (
-                                        <Image src={photoPreview2} alt="Rider 2 preview" fill sizes="96px" className="rounded-full object-cover" />
-                                    ) : ( <UserIcon className="w-10 h-10 text-muted-foreground" /> )}
-                                    {isUploading2 && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
-                                </div>
-                                <Button type="button" variant="outline" onClick={() => photoInputRef2.current?.click()} disabled={isUploading}>
-                                    <Upload className="mr-2 h-4 w-4" /> {photoPreview2 ? 'Change' : 'Upload'}
-                                </Button>
-                                <Input
-                                    type="file" className="hidden" ref={photoInputRef2}
-                                    onChange={(e) => handlePhotoChange(e, 2)}
-                                    accept="image/png, image/jpeg" disabled={isUploading}
-                                />
-                            </div>
-                        </FormControl>
-                        <FormMessage>{form.formState.errors.photoURL2?.message}</FormMessage>
-                    </FormItem>
-                    <FormField name="fullName2" control={form.control} render={({ field }) => (
-                        <FormItem><FormLabel>Full Name (Rider 2)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField control={form.control} name="age2" render={({ field }) => (<FormItem><FormLabel>Age (Rider 2)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="phoneNumber2" render={({ field }) => (<FormItem><FormLabel>Phone (Rider 2)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </div>
-                </>
-            )}
+            
+            <FormField
+              control={form.control}
+              name="registrationType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Vehicle Type</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="bike" id="bike" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                            <Bike className="mb-3 h-6 w-6" /> Bike
+                        </FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="jeep" id="jeep" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                           <Tractor className="mb-3 h-6 w-6" /> Jeep
+                        </FormLabel>
+                      </FormItem>
+                       <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="car" id="car" className="peer sr-only" /></FormControl>
+                        <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary w-full cursor-pointer">
+                           <Car className="mb-3 h-6 w-6" /> Car
+                        </FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting || isUploading}>

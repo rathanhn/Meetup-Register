@@ -90,22 +90,16 @@ export interface EventSettings {
 
 export interface Registration {
     id: string;
-    registrationType: 'solo' | 'duo';
+    registrationType: 'bike' | 'jeep' | 'car';
     fullName: string;
     age: number;
     phoneNumber: string;
     whatsappNumber?: string;
     photoURL?: string;
-    fullName2?: string;
-    age2?: number;
-    phoneNumber2?: string;
-    photoURL2?: string;
     createdAt: any; // Firestore timestamp
     status: 'pending' | 'approved' | 'rejected' | 'cancellation_requested' | 'cancelled';
     rider1CheckedIn?: boolean;
-    rider2CheckedIn?: boolean;
     rider1Finished?: boolean;
-    rider2Finished?: boolean;
     certificateGranted?: boolean;
     cancellationReason?: string;
     statusLastUpdatedAt?: any; // Firestore timestamp

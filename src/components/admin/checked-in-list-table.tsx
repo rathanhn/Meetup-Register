@@ -29,7 +29,7 @@ type CheckedInParticipant = {
     name: string;
     phone: string;
     photoUrl?: string;
-    type: 'Solo' | 'Duo (Rider 1)' | 'Duo (Rider 2)';
+    type: Registration['registrationType'];
     checkedInAt?: Date; // Assuming we might add this later
 }
 
@@ -66,17 +66,7 @@ export function CheckedInListTable() {
               name: reg.fullName,
               phone: reg.phoneNumber,
               photoUrl: reg.photoURL,
-              type: reg.registrationType === 'solo' ? 'Solo' : 'Duo (Rider 1)',
-          });
-      }
-      if (reg.rider2CheckedIn && reg.fullName2 && reg.phoneNumber2) {
-           participants.push({
-              id: `${reg.id}-2`,
-              registrationId: reg.id,
-              name: reg.fullName2,
-              phone: reg.phoneNumber2,
-              photoUrl: reg.photoURL2,
-              type: 'Duo (Rider 2)',
+              type: reg.registrationType
           });
       }
     });
@@ -176,7 +166,7 @@ export function CheckedInListTable() {
                                 <div>
                                     <p className="font-semibold">{p.name}</p>
                                     <p className="text-sm text-muted-foreground">{p.phone}</p>
-                                    <Badge variant="secondary" className="mt-1">{p.type}</Badge>
+                                    <Badge variant="secondary" className="mt-1 capitalize">{p.type}</Badge>
                                 </div>
                             </div>
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -188,7 +178,7 @@ export function CheckedInListTable() {
                 ))
             ) : (
                 <div className="text-center py-10 text-muted-foreground">
-                   {searchTerm ? 'No checked-in riders match your search.' : 'No riders have checked in yet.'}
+                   {searchTerm ? 'No checked-in riders match your search.' : 'No participants have checked in yet.'}
                 </div>
             )}
         </div>
@@ -219,7 +209,7 @@ export function CheckedInListTable() {
                         </TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>{p.phone}</TableCell>
-                        <TableCell><Badge variant="outline">{p.type}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{p.type}</Badge></TableCell>
                         <TableCell className="text-right">
                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                 <CheckCircle className="mr-2 h-4 w-4" />
@@ -231,7 +221,7 @@ export function CheckedInListTable() {
                 ) : (
                     <TableRow>
                     <TableCell colSpan={5} className="text-center h-24">
-                        {searchTerm ? 'No checked-in riders match your search.' : 'No riders have checked in yet.'}
+                        {searchTerm ? 'No checked-in riders match your search.' : 'No participants have checked in yet.'}
                     </TableCell>
                     </TableRow>
                 )}
