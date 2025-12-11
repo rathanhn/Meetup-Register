@@ -1,0 +1,87 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superadmin'];
+    }
+
+    function isSuperAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    // Rules for collections
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if false; // Nobody can delete user profiles directly
+    }
+
+    match /registrations/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuth(); // Allow any authenticated user to create their own registration
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /qna/{questionId} {
+      allow read: if true;
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+      
+      match /replies/{replyId} {
+        allow read: if true;
+        allow create: if isAuth();
+        allow update, delete: if isAdmin();
+      }
+    }
+    
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+    }
+    
+    // Content management collections
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /schedule/{scheduleId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /organizers/{organizerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /promotions/{promotionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /locationPartners/{partnerId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Settings collections
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
