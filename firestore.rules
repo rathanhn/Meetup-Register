@@ -28,10 +28,10 @@ service cloud.firestore {
       allow delete: if false; // Nobody can delete user profiles directly
     }
 
-    match /registrations/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+    match /registrations/{registrationId} {
+      allow read: if isOwner(registrationId) || isAdmin();
       allow create: if isAuth(); // Allow any authenticated user to create their own registration
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(registrationId) || isAdmin();
       allow delete: if isAdmin();
     }
     
