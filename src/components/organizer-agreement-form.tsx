@@ -26,6 +26,7 @@ import { Separator } from "./ui/separator";
 import Link from "next/link";
 
 const formSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("A valid email is required."),
   password: z.string().min(6, "Password must be at least 6 characters."),
   confirmPassword: z.string().min(6, "Password must be at least 6 characters."),
@@ -59,6 +60,7 @@ export function OrganizerAgreementForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -111,6 +113,19 @@ export function OrganizerAgreementForm() {
 
              <h3 className="text-lg font-medium text-primary flex items-center gap-2"><UserCheck /> New Account Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
                 <FormField
                     control={form.control}
                     name="email"
@@ -189,3 +204,5 @@ export function OrganizerAgreementForm() {
     </Card>
   );
 }
+
+    

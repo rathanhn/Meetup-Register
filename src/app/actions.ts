@@ -613,6 +613,7 @@ export async function togglePinQuestion(values: z.infer<typeof qnaModSchema>) {
 
 // Schema for requesting organizer access
 const requestOrganizerAccessSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("A valid email is required."),
   password: z.string().min(6, "Password must be at least 6 characters."),
   consent: z.boolean().refine(val => val, { message: "Consent is required."}),
@@ -627,7 +628,7 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
   }
   console.log("[Action] Organizer Zod validation successful.");
 
-  const { email, password } = parsed.data;
+  const { name, email, password } = parsed.data;
 
   try {
     console.log(`[Action] Attempting to create organizer user with email: ${email}`);
@@ -639,7 +640,7 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
     console.log(`[Action] Saving organizer user profile to 'users/${user.uid}'...`);
     await setDoc(userRef, {
         email: user.email,
-        displayName: user.email?.split('@')[0],
+        displayName: name,
         role: 'user',
         photoURL: null,
         createdAt: serverTimestamp(),
@@ -1293,3 +1294,5 @@ export async function manageHomepageVisibility(values: z.infer<typeof homepageVi
     revalidatePath('/');
     return { success: true, message: "Homepage section visibility updated." };
 }
+
+    
