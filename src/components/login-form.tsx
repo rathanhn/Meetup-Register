@@ -58,7 +58,8 @@ export function LoginForm() {
     },
   });
 
-  const isSubmitting = loading || googleLoading;
+  const { formState: { isSubmitting } } = form;
+  const isProcessing = isSubmitting || loading || googleLoading;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     await signInWithEmailAndPassword(values.email, values.password);
@@ -100,13 +101,15 @@ export function LoginForm() {
                 createdAt: serverTimestamp(),
             });
         }
-        // Successful sign-in will be caught by the `useAuthState` hook which redirects to dashboard
+        router.push('/dashboard');
     } catch(e: any) {
-        toast({
-            variant: "destructive",
-            title: "Google Sign-In Failed",
-            description: e.message?.replace('Firebase: ', ''),
-        });
+        if (e.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: "destructive",
+                title: "Google Sign-In Failed",
+                description: e.message?.replace('Firebase: ', ''),
+            });
+        }
     } finally {
         setGoogleLoading(false);
     }
@@ -120,7 +123,7 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-2">
-            <Button variant="outline" className="w-full" disabled={isSubmitting} onClick={handleGoogleSignIn}>
+            <Button variant="outline" className="w-full" disabled={isProcessing} onClick={handleGoogleSignIn}>
                 {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
                 Sign in with Google
             </Button>
@@ -165,7 +168,7 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isProcessing}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In with Email
             </Button>

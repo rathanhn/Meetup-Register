@@ -132,8 +132,15 @@ export function RegistrationForm() {
     },
   });
 
-  const { isSubmitting } = form.formState;
-  const phoneNumber = form.watch("phoneNumber");
+  const { formState: { isSubmitting }, watch } = form;
+  const phoneNumber = watch("phoneNumber");
+  const password = watch("password");
+  const confirmPassword = watch("confirmPassword");
+
+  const passwordsMatch = password && confirmPassword && password === confirmPassword;
+  const passwordsDoNotMatch = password && confirmPassword && password !== confirmPassword;
+  
+  const isFormProcessing = isSubmitting || isProcessing || isGoogleLoading;
 
   useEffect(() => {
     if (sameAsPhone) {
@@ -261,7 +268,7 @@ export function RegistrationForm() {
             
             <h3 className="text-lg font-medium text-primary">Account Details</h3>
             <div className="grid grid-cols-1 gap-2">
-                <Button variant="outline" className="w-full" disabled={isProcessing || isGoogleLoading} onClick={handleGoogleSignIn} type="button">
+                <Button variant="outline" className="w-full" disabled={isFormProcessing} onClick={handleGoogleSignIn} type="button">
                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
                     Continue with Google
                 </Button>
@@ -309,6 +316,8 @@ export function RegistrationForm() {
                         <FormControl>
                         <Input type="password" placeholder="Re-enter your password" {...field} />
                         </FormControl>
+                        {passwordsMatch && <p className="text-xs text-green-600">Passwords match.</p>}
+                        {passwordsDoNotMatch && <p className="text-xs text-destructive">Passwords do not match.</p>}
                         <FormMessage />
                     </FormItem>
                     )}
@@ -362,7 +371,7 @@ export function RegistrationForm() {
                             <User className="w-10 h-10 text-muted-foreground" />
                         )}
                       </div>
-                      <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click() } disabled={isSubmitting || isProcessing}>
+                      <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click() } disabled={isFormProcessing}>
                          <Upload className="mr-2 h-4 w-4" /> Change Photo
                       </Button>
                       <Input
@@ -442,9 +451,9 @@ export function RegistrationForm() {
                     </div>
                 </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting || !form.formState.isValid || isProcessing}>
-              {(isSubmitting || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isProcessing ? "Submitting..." : "Create Account & Register"}
+            <Button type="submit" className="w-full" disabled={isFormProcessing || !form.formState.isValid}>
+              {isFormProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isFormProcessing ? "Submitting..." : "Create Account & Register"}
             </Button>
           </form>
         </Form>

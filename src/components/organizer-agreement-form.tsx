@@ -24,6 +24,7 @@ import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { Separator } from "./ui/separator";
 import Link from "next/link";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -59,6 +60,7 @@ export function OrganizerAgreementForm() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
     defaultValues: {
       name: "",
       email: "",
@@ -68,7 +70,13 @@ export function OrganizerAgreementForm() {
     },
   });
 
-  const { isSubmitting } = form.formState;
+  const { formState: { isSubmitting }, watch } = form;
+  const password = watch("password");
+  const confirmPassword = watch("confirmPassword");
+
+  const passwordsMatch = password && confirmPassword && password === confirmPassword;
+  const passwordsDoNotMatch = password && confirmPassword && password !== confirmPassword;
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -163,6 +171,8 @@ export function OrganizerAgreementForm() {
                         <FormControl>
                         <Input type="password" placeholder="Re-enter your password" {...field} />
                         </FormControl>
+                         {passwordsMatch && <p className="text-xs text-green-600">Passwords match.</p>}
+                         {passwordsDoNotMatch && <p className="text-xs text-destructive">Passwords do not match.</p>}
                         <FormMessage />
                     </FormItem>
                     )}
@@ -204,5 +214,3 @@ export function OrganizerAgreementForm() {
     </Card>
   );
 }
-
-    
