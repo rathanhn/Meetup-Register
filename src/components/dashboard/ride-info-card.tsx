@@ -24,7 +24,7 @@ export function RideInfoCard() {
         <Card>
             <CardHeader>
                 <CardTitle>Event Information</CardTitle>
-                <CardDescription>Key details about the Independence Day Ride.</CardDescription>
+                <CardDescription>Key details about the bike ride.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <div className="space-y-4 text-sm">

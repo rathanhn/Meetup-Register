@@ -62,7 +62,7 @@ export function StoreDetails() {
                 </Link>
             </Button>
              <Button asChild variant="outline" className="w-full">
-                <Link href="https://www.instagram.com/telefun_" target="_blank" rel="noopener noreferrer">
+                <Link href="https://instagram.com/your-profile" target="_blank" rel="noopener noreferrer">
                     <InstagramIcon className="mr-2 h-4 w-4" /> Follow us on Instagram
                 </Link>
             </Button>

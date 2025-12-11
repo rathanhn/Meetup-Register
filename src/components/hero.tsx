@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
-import HeroImage from "@/hero.png";
 import { Gift, UtensilsCrossed, BadgePercent, Calendar, MapPin, Rocket } from "lucide-react";
 import { StuntPerformers } from "./stunt-performers";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
@@ -12,10 +11,10 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
         <div className="rounded-lg bg-card shadow-lg overflow-hidden">
             <div className="p-6 sm:p-8 md:p-12 text-center">
                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-headline text-primary tracking-tight">
-                    Annual Bike Ride
+                    Annual Community Bike Ride
                 </h2>
                 <p className="mt-4 text-base sm:text-lg text-foreground/80 max-w-2xl mx-auto">
-                    Join us for an exhilarating bike ride to celebrate the spirit of community and freedom. Register now and be part of the excitement!
+                    Join us for an exhilarating bike ride to celebrate the spirit of community and adventure. Register now and be part of the excitement!
                 </p>
 
                  <div className="mt-8 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto text-left">
@@ -44,11 +43,12 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
 
                 <div className="my-6 md:my-8 flex justify-center">
                     <Image
-                        src={HeroImage}
+                        src="https://picsum.photos/seed/motorcycle-hero/600/400"
                         alt="Motorcyclists on a ride with flags"
                         width={600}
                         height={400}
                         className="rounded-lg shadow-md object-cover"
+                        data-ai-hint="motorcycle ride"
                         priority
                     />
                 </div>
