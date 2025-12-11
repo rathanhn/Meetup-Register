@@ -151,6 +151,7 @@ export async function createAccountAndRegisterRider(values: RegistrationInput) {
             };
         }
         
+        console.error("Error creating account and registration:", error);
         return { success: false, message: error.message || "Could not create your account or registration. Please try again." };
     }
 }
