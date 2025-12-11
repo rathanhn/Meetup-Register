@@ -166,17 +166,23 @@ export function RegistrationForm() {
 
   useEffect(() => {
     const handleGoogleRedirect = async () => {
+        setIsGoogleLoading(true);
         try {
             const result = await getRedirectResult(auth);
             if (result && result.user) {
                 const { user } = result;
-                form.setValue('email', user.email || '');
-                form.setValue('fullName', user.displayName || '');
+                form.reset({
+                    ...form.getValues(),
+                    email: user.email || '',
+                    fullName: user.displayName || '',
+                });
                 if (user.photoURL) {
                     setPhotoPreview(user.photoURL);
-                    // We don't set photoURL in the form here, as it's not a file.
-                    // We will handle this URL on submission.
                 }
+                 toast({
+                    title: "Google Account Linked!",
+                    description: "Please fill in the rest of your registration details.",
+                });
             }
         } catch (error) {
              console.error("Error handling Google redirect:", error);
@@ -185,7 +191,7 @@ export function RegistrationForm() {
         }
     }
     handleGoogleRedirect();
-  }, []);
+  }, [form, toast]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsProcessing(true);
