@@ -71,14 +71,14 @@ export function SingleTicket({ id, registration, riderNumber }: SingleTicketProp
         <div className="p-4 bg-muted/10 relative">
            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                 <Image src={Logo} alt="TeleFun Mobile Logo" width={40} height={40} className="rounded-full" />
+                 <Image src={Logo} alt="Event Logo" width={40} height={40} className="rounded-full" />
                  <div>
-                    <h3 className="font-bold text-primary">TeleFun Mobile</h3>
-                    <p className="text-sm text-muted-foreground">Independence Day Ride 2025</p>
+                    <h3 className="font-bold text-primary">RideRegister</h3>
+                    <p className="text-sm text-muted-foreground">Event Ticket</p>
                  </div>
               </div>
            </div>
-           <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-white to-green-500" />
+           <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-white to-primary/50" />
         </div>
         
         <div className="p-4 flex flex-col items-center text-center gap-4">
@@ -208,17 +208,17 @@ function TicketActions({ riderNumber, registration }: { riderNumber: 1 | 2, regi
             const dataUrl = await generateImageDataUrl(node);
             const blob = await (await fetch(dataUrl)).blob();
             const riderName = riderNumber === 1 ? registration.fullName : registration.fullName2;
-            const file = new File([blob], `${riderName}-ticket.png`, { type: blob.type });
+            const file = new File([blob], `${riderName}-event-ticket.png`, { type: blob.type });
 
             if (isShareApiSupported && navigator.canShare({ files: [file] })) {
                  await navigator.share({
-                    title: 'TeleFun Freedom Ride Ticket',
-                    text: `Here's my ticket for the TeleFun Freedom Ride!`,
+                    title: 'Event Ride Ticket',
+                    text: `Here's my ticket for the event!`,
                     files: [file],
                 });
             } else {
                  const link = document.createElement('a');
-                 link.download = `${riderName}-freedom-ride-ticket.png`;
+                 link.download = `${riderName}-event-ticket.png`;
                  link.href = dataUrl;
                  document.body.appendChild(link);
                  link.click();

@@ -1,30 +1,35 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { HelpCircle } from "lucide-react"
 
-const faqs = [
-  {
-    question: "Is there a registration fee?",
-    answer: "No, the registration for the Independence Day Freedom Ride is completely free of charge.",
-  },
-  {
-    question: "Who can participate in the ride?",
-    answer: "The ride is open to everyone who is at least 18 years old and has a bicycle in good working condition.",
-  },
-  {
-    question: "Is a helmet mandatory?",
-    answer: "Yes, for safety reasons, a helmet is compulsory for all riders. Participants without a helmet will not be allowed to ride.",
-  },
-  {
-    question: "What is the total distance of the ride?",
-    answer: "The approximate distance is around 15-20 kilometers. The final route map will be shared on the day of the event.",
-  },
-  {
-    question: "Will refreshments be provided?",
-    answer: "Yes, light refreshments and water will be available at the mid-point break and at the conclusion of the ride.",
-  },
-]
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { HelpCircle, Loader2, AlertTriangle } from "lucide-react"
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { FaqItem } from "@/lib/types";
+import { Skeleton } from "./ui/skeleton";
+
+
+const FaqSkeleton = () => (
+    <div className="space-y-6">
+        {[...Array(3)].map((_, i) => (
+            <div key={i} className="space-y-1">
+                <Skeleton className="h-5 w-1/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+            </div>
+        ))}
+    </div>
+)
+
 
 export function Faq() {
+  const [faqs, loading, error] = useCollection(
+    query(collection(db, 'faqs'), orderBy('createdAt', 'asc'))
+  );
+
+  const faqItems = faqs?.docs.map(doc => ({ id: doc.id, ...doc.data() } as FaqItem)) || [];
+
   return (
     <Card>
       <CardHeader>
@@ -34,9 +39,14 @@ export function Faq() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {loading && <FaqSkeleton />}
+        {error && <p className="text-destructive"><AlertTriangle className="inline h-4 w-4 mr-2"/>Error loading FAQs.</p>}
+        {!loading && faqItems.length === 0 && (
+            <p className="text-muted-foreground text-center">No FAQs have been added yet.</p>
+        )}
         <div className="space-y-6">
-          {faqs.map((faq, index) => (
-            <div key={index}>
+          {faqItems.map((faq) => (
+            <div key={faq.id}>
               <h4 className="font-semibold">{faq.question}</h4>
               <p className="text-muted-foreground mt-1">{faq.answer}</p>
             </div>

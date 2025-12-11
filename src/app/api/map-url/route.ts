@@ -19,8 +19,8 @@ export async function GET() {
     const locationDoc = await getDoc(doc(db, 'settings', 'route'));
     const locationData = locationDoc.data() as LocationSettings | undefined;
     
-    const origin = locationData?.origin || "Telefun Mobiles, Mahadevpet, Madikeri";
-    const destination = locationData?.destination || "Nisargadhama, Kushalnagar";
+    const origin = locationData?.origin || "City Hall";
+    const destination = locationData?.destination || "Central Park";
 
     const mapSrc = `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     const viewMapUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;

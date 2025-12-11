@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -36,27 +37,27 @@ export function StoreDetails() {
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">
-          Visit Us
+          About The Organizer
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-center text-center gap-4">
         <Image
           src={Logo}
-          alt="TeleFun Mobile Logo"
+          alt="Event Logo"
           width={100}
           height={100}
           className="rounded-full border-2 border-primary p-1"
         />
         <div className="space-y-1">
-            <h3 className="font-bold text-xl text-primary">Telefun Mobiles</h3>
-            <p className="text-sm text-muted-foreground">Shopping & Retail</p>
+            <h3 className="font-bold text-xl text-primary">RideRegister</h3>
+            <p className="text-sm text-muted-foreground">Event Platform</p>
         </div>
         <CardDescription className="text-sm">
-            Your One-Stop Mobile Shop for Apple products, smartphones, repairs, smartwatches & accessories.
+            Your platform for organizing and participating in exciting community bike rides.
         </CardDescription>
         <div className="w-full space-y-2">
             <Button asChild className="w-full bg-green-500 hover:bg-green-600">
-                <Link href="https://wa.me/916363148287" target="_blank" rel="noopener noreferrer">
+                <Link href="https://wa.me/917899359217" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="mr-2 h-4 w-4" /> Connect on WhatsApp
                 </Link>
             </Button>

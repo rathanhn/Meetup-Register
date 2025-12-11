@@ -52,7 +52,7 @@ export default function Home() {
         <div className="container mx-auto flex justify-center items-center gap-2 text-center px-4">
           <MapPin className="h-4 w-4 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium">
-            Telefun Mobiles: Mahadevpet, Madikeri
+            A Project by Rathan H N
           </p>
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function Home() {
               <Award className="h-10 w-10 text-primary mb-2" />
               <CardTitle className="font-headline">Get Your Digital Certificate!</CardTitle>
               <CardDescription>
-                  All riders who successfully complete the Freedom Ride will receive a personalized digital certificate of completion to commemorate their achievement.
+                  All riders who successfully complete the ride will receive a personalized digital certificate of completion to commemorate their achievement.
               </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -119,7 +119,7 @@ export default function Home() {
 
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm">
-        <p>&copy; {new Date().getFullYear()} TeleFun Mobile. All Rights Reserved.</p>
+        <p>&copy; {new Date().getFullYear()} RideRegister. All Rights Reserved.</p>
          <p>Follow us on <Link href="https://www.instagram.com/telefun_" target="_blank" className="text-primary hover:underline">Instagram</Link></p>
       </footer>
     </div>

@@ -20,7 +20,7 @@ const generateQrCodeUrl = (text: string) => {
 
 export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateProps>(
   ({ riderName, riderPhotoUrl, registrationId, origin }, ref) => {
-    const eventDate = format(new Date("2025-08-16"), "do 'of' MMMM yyyy");
+    const eventDate = format(new Date(), "do 'of' MMMM yyyy");
     const verificationUrl = origin ? `${origin}/ticket/${registrationId}` : '';
     const qrCodeUrl = verificationUrl ? generateQrCodeUrl(verificationUrl) : '';
 
@@ -28,7 +28,7 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
       <div
         id="certificate"
         ref={ref}
-        className="w-[1123px] h-[794px] bg-gradient-to-r from-orange-500 via-white to-green-500 p-2"
+        className="w-[1123px] h-[794px] bg-gradient-to-r from-primary via-white to-primary/30 p-2"
         style={{ fontFamily: "'Garamond', 'serif'" }}
       >
         <div className="w-full h-full p-6 bg-black flex flex-col items-center justify-between text-center relative">
@@ -42,7 +42,7 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
              <div className="block mx-auto">
                 <Image 
                     src={Logo} 
-                    alt="TeleFun Logo" 
+                    alt="Event Logo" 
                     width={80} 
                     height={80} 
                     className="rounded-full"
@@ -72,7 +72,7 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
             </div>
 
             <p className="text-lg max-w-2xl text-gray-300 mt-6">
-                for successfully completing the <strong>TeleFun Mobile Independence Day Freedom Ride 2025</strong>. 
+                for successfully completing the <strong>Annual Community Bike Ride</strong>. 
                 Your participation and spirit have made this event a grand success.
             </p>
           </div>
@@ -96,7 +96,7 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
            <div className="w-full flex justify-around max-w-3xl pb-4">
                 <div className="text-center">
                 <p className="text-xl font-semibold border-b-2 border-primary pb-1" style={{ fontFamily: "'Playfair Display', serif" }}>Event Organizer</p>
-                <p className="text-sm mt-1 text-gray-400">Team Telefun</p>
+                <p className="text-sm mt-1 text-gray-400">RideRegister Team</p>
                 </div>
                 <div className="text-center">
                 <p className="text-xl font-semibold border-b-2 border-primary pb-1" style={{ fontFamily: "'Playfair Display', serif" }}>Date of Event</p>

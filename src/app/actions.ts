@@ -757,6 +757,50 @@ export async function sendPasswordResetLink(values: z.infer<typeof forgotPasswor
 
 // === CONTENT MANAGEMENT ACTIONS ===
 
+const faqSchema = z.object({
+  question: z.string().min(10, "Question is required."),
+  answer: z.string().min(10, "Answer is required."),
+});
+
+export async function manageFaq(values: z.infer<typeof faqSchema> & { adminId: string; faqId?: string }) {
+  const { adminId, faqId, ...data } = values;
+  const isAdmin = await checkAdminPermissions(adminId);
+  if (!isAdmin) {
+    return { success: false, message: "Permission denied." };
+  }
+  const parsed = faqSchema.safeParse(data);
+  if (!parsed.success) return { success: false, message: "Invalid data." };
+
+  try {
+    if (faqId) {
+      await updateDoc(doc(db, "faqs", faqId), parsed.data);
+      revalidatePath('/');
+      return { success: true, message: "FAQ item updated." };
+    } else {
+      await addDoc(collection(db, "faqs"), { ...parsed.data, createdAt: serverTimestamp() });
+      revalidatePath('/');
+      return { success: true, message: "FAQ item added." };
+    }
+  } catch (error) {
+    return { success: false, message: "Failed to manage FAQ item." };
+  }
+}
+
+export async function deleteFaq(id: string, adminId: string) {
+  const isAdmin = await checkAdminPermissions(adminId);
+  if (!isAdmin) {
+    return { success: false, message: "Permission denied." };
+  }
+  try {
+    await deleteDoc(doc(db, "faqs", id));
+    revalidatePath('/');
+    return { success: true, message: "FAQ item deleted." };
+  } catch (error) {
+    return { success: false, message: "Failed to delete FAQ item." };
+  }
+}
+
+
 const scheduleSchema = z.object({
   time: z.string().min(1, "Time is required."),
   title: z.string().min(3, "Title is required."),
@@ -983,8 +1027,8 @@ export async function manageLocation(values: z.infer<typeof locationSchema> & { 
   
   // Set default value
   const finalData = {
-    origin: data.origin || "5g holidays escape, Kushalnagar",
-    destination: data.destination || "Telefun Mobiles, Madikeri",
+    origin: data.origin || "City Hall",
+    destination: data.destination || "Central Park",
   };
 
   const parsed = locationSchema.safeParse(finalData);

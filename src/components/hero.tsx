@@ -12,10 +12,10 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
         <div className="rounded-lg bg-card shadow-lg overflow-hidden">
             <div className="p-6 sm:p-8 md:p-12 text-center">
                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-headline text-primary tracking-tight">
-                    Freedom Ride 2025
+                    Annual Bike Ride
                 </h2>
                 <p className="mt-4 text-base sm:text-lg text-foreground/80 max-w-2xl mx-auto">
-                    Join TeleFun Mobile for an exhilarating bike ride to celebrate the spirit of freedom. Register now and be part of the excitement!
+                    Join us for an exhilarating bike ride to celebrate the spirit of community and freedom. Register now and be part of the excitement!
                 </p>
 
                  <div className="mt-8 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto text-left">
@@ -36,8 +36,8 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
                     <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
                         <BadgePercent className="h-6 w-6 text-primary flex-shrink-0" />
                         <div>
-                            <h4 className="font-semibold">Store Discounts</h4>
-                            <p className="text-sm text-muted-foreground">Get exclusive in-store offers.</p>
+                            <h4 className="font-semibold">Exclusive Discounts</h4>
+                            <p className="text-sm text-muted-foreground">Get special offers from our partners.</p>
                         </div>
                     </div>
                 </div>
@@ -45,7 +45,7 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
                 <div className="my-6 md:my-8 flex justify-center">
                     <Image
                         src={HeroImage}
-                        alt="Motorcyclists on a freedom ride with Indian and event flags"
+                        alt="Motorcyclists on a ride with flags"
                         width={600}
                         height={400}
                         className="rounded-lg shadow-md object-cover"
@@ -72,16 +72,13 @@ export function Hero({ registrationsOpen }: { registrationsOpen: boolean }) {
                            <Rocket className="h-6 w-6 text-primary"/> Get Ready for the Thrill!
                         </CardTitle>
                         <CardDescription>
-                            Get ready for jaw-dropping stunts and adrenaline-pumping action at the Freedom Ride 2K25!
+                            Get ready for jaw-dropping stunts and adrenaline-pumping action at the ride!
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="text-center">
                              <p className="mt-2 text-muted-foreground">
-                                Special Highlight: Bike Stunt Show Powered by TeleFun Mobiles
-                            </p>
-                             <p className="mt-2 font-semibold">
-                                <b>BY TEAM POWER STROKZ</b>
+                                Special Highlight: Professional Bike Stunt Show
                             </p>
                         </div>
                         <StuntPerformers />

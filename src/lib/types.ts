@@ -1,4 +1,10 @@
 
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: any;
+}
 
 export interface Announcement {
   id: string; // Document ID from Firestore

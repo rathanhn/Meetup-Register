@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'RideRegister',
-  description: 'Registration for the Independence Day Bike Ride by TeleFun Mobile',
+  description: 'Event registration and management platform for bike rides',
 };
 
 export default function RootLayout({
