@@ -30,7 +30,7 @@ export function DashboardProfileCard({ user, registration }: DashboardProfileCar
                     <AvatarFallback><User className="w-8 h-8"/></AvatarFallback>
                 </Avatar>
                 <div className="pt-2">
-                    <CardTitle>{user.displayName}</CardTitle>
+                    <CardTitle>{registration?.fullName || user.displayName}</CardTitle>
                     <CardDescription>{user.email}</CardDescription>
                 </div>
             </CardHeader>

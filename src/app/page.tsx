@@ -52,7 +52,7 @@ export default function Home() {
         <div className="container mx-auto flex justify-center items-center gap-2 text-center px-4">
           <MapPin className="h-4 w-4 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium">
-            A Project by Rathan H N
+            Designed & Developed by Rathan H N
           </p>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function Home() {
             <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
               <span>For inquiries, please contact the event head.</span>
                <Button asChild className="shrink-0">
-                  <Link href="tel:7899359217">
+                  <Link href="tel:+910000000000">
                     <Phone className="mr-2 h-4 w-4" />
                     Call Event Head
                   </Link>
@@ -120,7 +120,8 @@ export default function Home() {
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm">
         <p>&copy; {new Date().getFullYear()} RideRegister. All Rights Reserved.</p>
-         <p>Follow us on <Link href="https://www.instagram.com/telefun_" target="_blank" className="text-primary hover:underline">Instagram</Link></p>
+         <p>Follow us on <Link href="https://www.instagram.com/your-profile" target="_blank" className="text-primary hover:underline">Instagram</Link></p>
+         <p className="mt-2">Designed & Developed by Rathan H N</p>
       </footer>
     </div>
   );
