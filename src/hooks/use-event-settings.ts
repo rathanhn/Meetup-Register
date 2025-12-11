@@ -40,7 +40,7 @@ export function useEventSettings() {
                 const unsubRoute = onSnapshot(routeDocRef, (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data() as LocationSettings;
-                        const originShort = data.origin?.split(',')[0]?.trim();
+                        const originShort = data.origin?.split(',')[0]?.trimEnd();
                         setSettings(prev => ({ ...prev, ...data, originShort }));
                     }
                 });
