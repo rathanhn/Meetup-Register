@@ -96,10 +96,13 @@ const registrationFormSchema = z
 type RegistrationInput = z.infer<typeof registrationFormSchema>;
 
 export async function createAccountAndRegisterRider(values: RegistrationInput) {
+    console.log("[Action] Starting createAccountAndRegisterRider with values:", values);
     const parsed = registrationFormSchema.safeParse(values);
     if (!parsed.success) {
+        console.error("[Action] Zod validation failed:", parsed.error.flatten());
         return { success: false, message: "Invalid data provided." };
     }
+    console.log("[Action] Zod validation successful.");
 
     const { email, password, confirmPassword, ...registrationData } = parsed.data;
     
@@ -117,13 +120,17 @@ export async function createAccountAndRegisterRider(values: RegistrationInput) {
             delete dataToSave[key];
         }
     });
+    console.log("[Action] Data prepared for saving:", dataToSave);
 
 
     try {
+        console.log(`[Action] Attempting to create user with email: ${email}`);
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         const uid = user.uid;
+        console.log(`[Action] User created successfully. UID: ${uid}`);
 
+        console.log(`[Action] Saving user profile to 'users/${uid}'...`);
         const userRef = doc(db, "users", uid);
         await setDoc(userRef, {
             email: user.email,
@@ -132,16 +139,23 @@ export async function createAccountAndRegisterRider(values: RegistrationInput) {
             photoURL: registrationData.photoURL || null,
             createdAt: serverTimestamp(),
         });
+        console.log("[Action] User profile saved successfully.");
         
-        dataToSave.createdAt = serverTimestamp();
         const registrationRef = doc(db, "registrations", uid);
-        await setDoc(registrationRef, { ...dataToSave, uid });
+        const finalRegistrationData = { ...dataToSave, uid, createdAt: serverTimestamp() };
+        console.log(`[Action] Saving registration data to 'registrations/${uid}'...`, finalRegistrationData);
+        await setDoc(registrationRef, finalRegistrationData);
+        console.log("[Action] Registration data saved successfully.");
         
         revalidatePath('/dashboard');
+        console.log("[Action] Revalidated dashboard path. Returning success.");
         return { success: true, message: "Registration successful! Your application is pending review.", uid: uid };
 
     } catch (error: any) {
+        console.error("[Action] An error occurred in the registration process:", error);
+        
         if (error.code === 'auth/email-already-in-use') {
+            console.log("[Action] Email is already in use. Handling as existing user.");
             return { 
                 success: true, 
                 message: "Account already exists. We've linked this registration to your account. Logging you in...",
