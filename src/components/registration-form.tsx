@@ -108,7 +108,7 @@ export function RegistrationForm() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(true);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -166,7 +166,6 @@ export function RegistrationForm() {
 
   useEffect(() => {
     const handleGoogleRedirect = async () => {
-        setIsGoogleLoading(true);
         try {
             const result = await getRedirectResult(auth);
             if (result && result.user) {
@@ -175,6 +174,8 @@ export function RegistrationForm() {
                     ...form.getValues(),
                     email: user.email || '',
                     fullName: user.displayName || '',
+                    password: 'temp-password', // Prefill for validation
+                    confirmPassword: 'temp-password',
                 });
                 if (user.photoURL) {
                     setPhotoPreview(user.photoURL);

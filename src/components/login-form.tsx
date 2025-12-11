@@ -61,19 +61,15 @@ export function LoginForm() {
 
   const isSubmitting = loading || googleLoading || isProcessingRedirect;
 
-  const redirectToDashboard = () => {
-      router.push('/dashboard');
-  };
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     await signInWithEmailAndPassword(values.email, values.password);
   }
 
   useEffect(() => {
     if (user) {
-      redirectToDashboard();
+      router.push('/dashboard');
     }
-  }, [user]);
+  }, [user, router]);
   
   useEffect(() => {
     const processRedirectResult = async () => {
@@ -93,6 +89,7 @@ export function LoginForm() {
                   createdAt: serverTimestamp(),
               });
           }
+          // The user object is now available from the hook, so the above useEffect will trigger redirect
         }
       } catch (error: any) {
         console.error("Error processing redirect result:", error);
@@ -106,7 +103,7 @@ export function LoginForm() {
       }
     };
     processRedirectResult();
-  }, []);
+  }, [toast]);
   
   useEffect(() => {
     if (error) {
