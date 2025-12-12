@@ -1,10 +1,11 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBJYhvREwAe0z3e_UNdryRH9biZPN8igLQ",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "meetup-register-35fb2.firebaseapp.com",
   projectId: "meetup-register-35fb2",
   storageBucket: "meetup-register-35fb2.appspot.com",
