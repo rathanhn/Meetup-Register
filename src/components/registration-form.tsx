@@ -131,7 +131,7 @@ export function RegistrationForm() {
     },
   });
 
-  const { formState: { isSubmitting }, watch } = form;
+  const { formState, watch } = form;
   const phoneNumber = watch("phoneNumber");
   const password = watch("password");
   const confirmPassword = watch("confirmPassword");
@@ -139,7 +139,7 @@ export function RegistrationForm() {
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
   const passwordsDoNotMatch = password && confirmPassword && password !== confirmPassword;
   
-  const isFormProcessing = isSubmitting || isProcessing || isGoogleLoading;
+  const isFormProcessing = formState.isSubmitting || isProcessing || isGoogleLoading;
 
   useEffect(() => {
     if (sameAsPhone) {
@@ -440,7 +440,7 @@ export function RegistrationForm() {
                     </div>
                 </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isFormProcessing || !form.formState.isValid}>
+            <Button type="submit" className="w-full" disabled={isFormProcessing || !formState.isValid}>
               {isFormProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isFormProcessing ? "Submitting..." : "Create Account & Register"}
             </Button>

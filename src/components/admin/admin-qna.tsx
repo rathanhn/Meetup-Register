@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import type { QnaQuestion } from '@/lib/types';
 import { AdminQnaItem } from './admin-qna-item';
 import { Card } from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const QnaSkeleton = () => (
     <Card className="p-4 space-y-4">
@@ -27,9 +28,10 @@ const QnaSkeleton = () => (
 )
 
 export function AdminQna() {
-  const [questions, questionsLoading, questionsError] = useCollection(
-    query(collection(db, 'qna'), orderBy('isPinned', 'desc'))
-  );
+  const qnaQuery = useMemoFirebase(() => query(collection(db, 'qna'), orderBy('isPinned', 'desc')), []);
+  const { data: questionsData, loading: questionsLoading, error: questionsError } = useCollection<QnaQuestion>(qnaQuery);
+
+  const questions = questionsData || [];
 
   return (
     <div className="space-y-6">
@@ -40,12 +42,12 @@ export function AdminQna() {
         </div>
       )}
       {questionsError && <p className="text-destructive">Error loading questions: {questionsError.message}</p>}
-      {questions && questions.docs.length === 0 && (
+      {questions && questions.length === 0 && (
          <p className="text-muted-foreground text-center py-4">No questions have been asked yet.</p>
       )}
       <div className="space-y-4">
-        {questions?.docs.map(doc => (
-          <AdminQnaItem key={doc.id} question={{ id: doc.id, ...doc.data() } as QnaQuestion} />
+        {questions?.map(doc => (
+          <AdminQnaItem key={doc.id} question={doc} />
         ))}
       </div>
     </div>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Registration } from '@/lib/types';
@@ -9,11 +9,11 @@ import { Loader2, AlertTriangle, Users, User, Ticket, Bike, Tractor, Car } from 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
 import { PieChart, Pie, Cell } from "recharts"
+import { useMemoFirebase } from '@/firebase/memo';
 
 export function StatsOverview() {
-  const [value, loading, error] = useCollection(
-    query(collection(db, 'registrations'), where('status', 'in', ['approved', 'pending']))
-    );
+  const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), where('status', 'in', ['approved', 'pending'])), []);
+  const { data: registrationsData, loading, error } = useCollection<Registration>(registrationsQuery);
 
   if (loading) {
     return (
@@ -52,7 +52,7 @@ export function StatsOverview() {
     );
   }
 
-  const registrations = value?.docs.map(doc => doc.data() as Omit<Registration, 'id'>) || [];
+  const registrations = registrationsData || [];
   
   const totalRegistrations = registrations.length;
   

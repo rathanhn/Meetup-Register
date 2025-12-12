@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import {
@@ -36,6 +36,7 @@ import { Separator } from '../ui/separator';
 import { Card, CardContent } from '../ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { EditRegistrationForm } from './edit-registration-form';
+import { useMemoFirebase } from '@/firebase/memo';
 
 
 // Helper function to format WhatsApp links
@@ -65,10 +66,10 @@ const TableSkeleton = () => (
 );
 
 export function RidersListTable() {
-  const [registrations, loading, error] = useCollection(
-    query(collection(db, 'registrations'), orderBy('createdAt', 'desc'))
-  );
-  const [user, authLoading] = useAuthState(auth);
+  const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), orderBy('createdAt', 'desc')), []);
+  const { data: registrationsData, loading, error } = useCollection<Registration>(registrationsQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -82,6 +83,14 @@ export function RidersListTable() {
     if (typeof window !== 'undefined') {
         setOrigin(window.location.origin);
     }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -99,19 +108,15 @@ export function RidersListTable() {
   const canEdit = userRole === 'admin' || userRole === 'superadmin';
 
   const approvedRegistrations = useMemo(() => {
-    if (!registrations) return [];
-    return registrations.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Registration))
-      .filter(reg => reg.status === 'approved');
-  }, [registrations]);
+    if (!registrationsData) return [];
+    return registrationsData.filter(reg => reg.status === 'approved');
+  }, [registrationsData]);
 
   const filteredRegistrations = useMemo(() => {
     if (!searchTerm) return approvedRegistrations;
     return approvedRegistrations.filter(reg => 
         reg.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (reg.fullName2 && reg.fullName2.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        reg.phoneNumber.includes(searchTerm) ||
-        (reg.phoneNumber2 && reg.phoneNumber2.includes(searchTerm))
+        reg.phoneNumber.includes(searchTerm)
     );
   }, [approvedRegistrations, searchTerm]);
   
@@ -140,8 +145,7 @@ export function RidersListTable() {
 
     const headers = [
       "ID", "Status", 
-      "Rider 1 Name", "Rider 1 Age", "Rider 1 Phone", "Rider 1 Checked-In",
-      "Rider 2 Name", "Rider 2 Age", "Rider 2 Phone", "Rider 2 Checked-In",
+      "Rider Name", "Rider Age", "Rider Phone", "Rider Checked-In",
       "Registered On"
     ];
 
@@ -151,7 +155,6 @@ export function RidersListTable() {
         const row = [
           reg.id, reg.status,
           `"${reg.fullName}"`, reg.age, reg.phoneNumber, reg.rider1CheckedIn ? 'Yes' : 'No',
-          reg.fullName2 ? `"${reg.fullName2}"` : "N/A", reg.age2 ?? "N/A", reg.phoneNumber2 ?? "N/A", reg.rider2CheckedIn ? 'Yes' : 'No',
           reg.createdAt?.toDate().toISOString() ?? 'N/A'
         ];
         return row.join(',');
@@ -245,8 +248,8 @@ export function RidersListTable() {
                                         <AvatarFallback><UserIcon /></AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="font-semibold">{reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}</p>
-                                        <Badge variant={reg.registrationType === 'duo' ? 'default' : 'secondary'} className="capitalize mt-1">{reg.registrationType}</Badge>
+                                        <p className="font-semibold">{reg.fullName}</p>
+                                        <Badge variant={'secondary'} className="capitalize mt-1">{reg.registrationType}</Badge>
                                     </div>
                                 </div>
                                 <Dialog>
@@ -256,7 +259,7 @@ export function RidersListTable() {
                                     <DialogContent className="max-h-[80vh] overflow-y-auto">
                                         <DialogHeader>
                                             <DialogTitle>Rider Actions</DialogTitle>
-                                            <DialogDescription>{reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}</DialogDescription>
+                                            <DialogDescription>{reg.fullName}</DialogDescription>
                                         </DialogHeader>
                                         {origin ? (
                                         <div className="space-y-4 py-4">
@@ -273,21 +276,6 @@ export function RidersListTable() {
                                                 </div>
                                             </div>
 
-                                            {reg.registrationType === 'duo' && reg.phoneNumber2 && (
-                                                <div className="p-3 border rounded-md bg-background space-y-2">
-                                                    <p className="font-semibold">{reg.fullName2}</p>
-                                                    <p className="text-sm text-muted-foreground">{reg.phoneNumber2}</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className={`justify-center ${reg.rider2CheckedIn ? 'bg-green-100 text-green-800' : ''}`}>P2: {reg.rider2CheckedIn ? 'Checked-in' : 'Pending'}</Badge>
-                                                        <Badge variant="outline" className={`justify-center ${reg.rider2Finished ? 'bg-blue-100 text-blue-800' : ''}`}>P2: {reg.rider2Finished ? 'Finished' : 'Pending'}</Badge>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 pt-2">
-                                                        <Button asChild variant="outline" size="sm"><Link href={formatWhatsAppLink(reg.phoneNumber2, getTicketMessage(reg.fullName2 || 'Rider', ticketUrl))} target="_blank"><Send /> Send</Link></Button>
-                                                        <Button asChild variant="outline" size="sm"><Link href={formatWhatsAppLink(reg.phoneNumber2)} target="_blank"><MessageCircle /> Message</Link></Button>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             <Separator />
                                             
                                             <div className="p-3 border rounded-md bg-background space-y-2">
@@ -296,10 +284,7 @@ export function RidersListTable() {
                                                     <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>
                                                 )}
                                                 <div className="flex flex-col gap-2 pt-2">
-                                                     <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName, reg.photoURL, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> View (Rider 1)</Link></Button>
-                                                      {reg.registrationType === 'duo' && (
-                                                          <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName2!, reg.photoURL2, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> View (Rider 2)</Link></Button>
-                                                      )}
+                                                     <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName, reg.photoURL, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> View Certificate</Link></Button>
                                                     {canEdit && (
                                                         <Button size="sm" variant="outline" disabled={isProcessing === reg.id} onClick={() => handleCertificateToggle(reg)}>
                                                             {isProcessing === reg.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : (reg.certificateGranted ? <RotateCcw className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4"/>)}
@@ -352,7 +337,7 @@ export function RidersListTable() {
             <TableHeader>
             <TableRow>
                 <TableHead>Photo</TableHead>
-                <TableHead>Rider(s)</TableHead>
+                <TableHead>Rider</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Certificate</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -373,10 +358,10 @@ export function RidersListTable() {
                                 </Avatar>
                             </TableCell>
                             <TableCell className="font-medium">
-                                {reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}
+                                {reg.fullName}
                             </TableCell>
                             <TableCell>
-                                <Badge variant={reg.registrationType === 'duo' ? 'default' : 'secondary'} className="capitalize">
+                                <Badge variant={'secondary'} className="capitalize">
                                     {reg.registrationType}
                                 </Badge>
                             </TableCell>
@@ -395,7 +380,7 @@ export function RidersListTable() {
                                     <DialogContent className="max-h-[80vh] overflow-y-auto">
                                         <DialogHeader>
                                             <DialogTitle>Rider Actions</DialogTitle>
-                                            <DialogDescription>{reg.fullName}{reg.registrationType === 'duo' && ` & ${reg.fullName2}`}</DialogDescription>
+                                            <DialogDescription>{reg.fullName}</DialogDescription>
                                         </DialogHeader>
                                          {origin ? (
                                         <div className="space-y-4 py-4">
@@ -412,31 +397,13 @@ export function RidersListTable() {
                                                 </div>
                                             </div>
 
-                                            {reg.registrationType === 'duo' && reg.phoneNumber2 && (
-                                                <div className="p-3 border rounded-md bg-background space-y-2">
-                                                    <p className="font-semibold">{reg.fullName2}</p>
-                                                    <p className="text-sm text-muted-foreground">{reg.phoneNumber2}</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className={`justify-center ${reg.rider2CheckedIn ? 'bg-green-100 text-green-800' : ''}`}>P2: {reg.rider2CheckedIn ? 'Checked-in' : 'Pending'}</Badge>
-                                                        <Badge variant="outline" className={`justify-center ${reg.rider2Finished ? 'bg-blue-100 text-blue-800' : ''}`}>P2: {reg.rider2Finished ? 'Finished' : 'Pending'}</Badge>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 pt-2">
-                                                        <Button asChild variant="outline" size="sm"><Link href={formatWhatsAppLink(reg.phoneNumber2, getTicketMessage(reg.fullName2 || 'Rider', ticketUrl))} target="_blank"><Send /> Send</Link></Button>
-                                                        <Button asChild variant="outline" size="sm"><Link href={formatWhatsAppLink(reg.phoneNumber2)} target="_blank"><MessageCircle /> Message</Link></Button>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             <Separator />
                                             
                                             <div className="p-3 border rounded-md bg-background space-y-2">
                                                 <p className="font-semibold">Certificate Management</p>
                                                 {reg.certificateGranted && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>}
                                                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                                    <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName, reg.photoURL, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> Rider 1 Cert</Link></Button>
-                                                    {reg.registrationType === 'duo' && (
-                                                        <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName2!, reg.photoURL2, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> Rider 2 Cert</Link></Button>
-                                                    )}
+                                                    <Button asChild size="sm" variant="outline"><Link href={generateCertificatePreviewUrl(reg.fullName, reg.photoURL, reg.id)} target="_blank"><Eye className="mr-2 h-4 w-4" /> View Cert</Link></Button>
                                                 </div>
                                                 {canEdit && (
                                                     <Button className="mt-2" size="sm" variant="outline" disabled={isProcessing === reg.id} onClick={() => handleCertificateToggle(reg)}>
@@ -489,3 +456,4 @@ export function RidersListTable() {
     </div>
   );
 }
+

@@ -152,7 +152,7 @@ export function RegistrationsTable() {
     return (
       <div className="text-destructive flex items-center gap-2 p-4">
         <AlertTriangle />
-        <p>Error loading registrations: {error}</p>
+        <p>Error loading registrations: {error.message}</p>
       </div>
     );
   }
@@ -207,7 +207,7 @@ export function RegistrationsTable() {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Photo</TableHead>
-                        <TableHead>Name(s)</TableHead>
+                        <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead className="text-right">Actions</TableHead>

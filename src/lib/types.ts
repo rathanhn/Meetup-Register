@@ -90,6 +90,7 @@ export interface EventSettings {
 
 export interface Registration {
     id: string;
+    uid: string;
     registrationType: 'bike' | 'jeep' | 'car';
     fullName: string;
     age: number;
