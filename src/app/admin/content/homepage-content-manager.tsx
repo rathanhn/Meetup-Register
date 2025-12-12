@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { manageHomepageContent } from "@/app/actions";
 import type { EventSettings, UserRole } from "@/lib/types";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useDocument } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, Save, ShieldAlert, Upload } from "lucide-react";
@@ -19,6 +19,7 @@ import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const formSchema = z.object({
   heroTitle: z.string().min(5, "Title is required."),
@@ -43,11 +44,13 @@ const fileToDataUri = (file: File) => {
 };
 
 export function HomepageContentManager() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   
-  const [settingsDoc, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const settingsDocRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+  const { data: settingsDoc, loading, error } = useDoc<EventSettings>(settingsDocRef);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,6 +67,14 @@ export function HomepageContentManager() {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (user) {
         const userDocRef = doc(db, 'users', user.uid);
         getDoc(userDocRef).then(doc => {
@@ -73,8 +84,8 @@ export function HomepageContentManager() {
   }, [user]);
 
   useEffect(() => {
-    if (settingsDoc?.exists()) {
-      const data = settingsDoc.data() as EventSettings;
+    if (settingsDoc) {
+      const data = settingsDoc;
       form.reset({
           heroTitle: data.heroTitle || "Annual Community Bike Ride",
           heroDescription: data.heroDescription || "Join us for an exhilarating bike ride to celebrate the spirit of community and adventure. Register now and be part of the excitement!",
@@ -109,7 +120,7 @@ export function HomepageContentManager() {
         setPhotoPreview(url);
       } catch (e) {
         toast({ variant: 'destructive', title: 'Upload Failed', description: (e as Error).message });
-        setPhotoPreview(settingsDoc?.data()?.heroImageUrl || null);
+        setPhotoPreview(settingsDoc?.heroImageUrl || null);
       } finally {
         setIsUploading(false);
       }

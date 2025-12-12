@@ -9,14 +9,15 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { manageHomepageVisibility } from "@/app/actions";
 import type { EventSettings, UserRole } from "@/lib/types";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useDocument } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, Save, ShieldAlert, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const formSchema = z.object({
   showSchedule: z.boolean(),
@@ -26,11 +27,13 @@ const formSchema = z.object({
 });
 
 export function HomepageVisibilityManager() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   
-  const [settingsDoc, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const settingsDocRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+  const { data: settingsDoc, loading, error } = useDoc<EventSettings>(settingsDocRef);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,6 +46,14 @@ export function HomepageVisibilityManager() {
   });
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (user) {
         const userDocRef = doc(db, 'users', user.uid);
         getDoc(userDocRef).then(doc => {
@@ -52,8 +63,8 @@ export function HomepageVisibilityManager() {
   }, [user]);
 
   useEffect(() => {
-    if (settingsDoc?.exists()) {
-      const data = settingsDoc.data() as EventSettings;
+    if (settingsDoc) {
+      const data = settingsDoc;
       form.reset({
           showSchedule: data.showSchedule ?? true,
           showReviews: data.showReviews ?? true,
