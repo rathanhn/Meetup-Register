@@ -29,7 +29,8 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
-      allow read: if isOwner(registrationId) || isAdmin();
+      allow list: if true;
+      allow get: if isOwner(registrationId) || isAdmin();
       allow create: if isAuth(); // Allow any authenticated user to create their own registration
       allow update: if isOwner(registrationId) || isAdmin();
       allow delete: if isAdmin();
