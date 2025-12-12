@@ -111,23 +111,27 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
-    const result = await manageOrganizer({ ...values, adminId: user.uid, organizerId: organizer?.id });
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await manageOrganizer({ ...values, adminId: user.uid, organizerId: organizer?.id });
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
   
   const handleDelete = async () => {
     if (!user || !organizer) return;
-    const result = await deleteOrganizer(organizer.id, user.uid);
-     if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await deleteOrganizer(organizer.id, user.uid);
+         if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -212,3 +216,5 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
     </Dialog>
   );
 }
+
+    

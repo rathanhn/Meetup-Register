@@ -108,23 +108,27 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
-    const result = await managePromotion({ ...values, adminId: user.uid, promotionId: promotion?.id });
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await managePromotion({ ...values, adminId: user.uid, promotionId: promotion?.id });
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
   
   const handleDelete = async () => {
     if (!user || !promotion) return;
-    const result = await deletePromotion(promotion.id, user.uid);
-     if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await deletePromotion(promotion.id, user.uid);
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -209,3 +213,5 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
     </Dialog>
   );
 }
+
+    

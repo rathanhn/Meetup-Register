@@ -105,23 +105,27 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
-    const result = await manageLocationPartner({ ...values, adminId: user.uid, partnerId: partner?.id });
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await manageLocationPartner({ ...values, adminId: user.uid, partnerId: partner?.id });
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
   
   const handleDelete = async () => {
     if (!user || !partner) return;
-    const result = await deleteLocationPartner(partner.id, user.uid);
-     if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await deleteLocationPartner(partner.id, user.uid);
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -195,3 +199,5 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
     </Dialog>
   );
 }
+
+    

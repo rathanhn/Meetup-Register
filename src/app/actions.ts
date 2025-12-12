@@ -656,7 +656,11 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
     } catch (firestoreError: any) {
         console.error("[Action] Firestore setDoc failed:", firestoreError);
         // This is the critical error we need to catch and report
-        return { success: false, message: `Failed to save user profile: ${firestoreError.message}` };
+        throw new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'create',
+            requestResourceData: userData,
+        });
     }
 
     console.log("[Action] User profile creation complete. Returning success.");
@@ -664,6 +668,10 @@ export async function createAndRequestOrganizerAccess(values: z.infer<typeof req
 
   } catch (error: any) {
     console.error("[Action] An error occurred in createAndRequestOrganizerAccess:", error);
+    if (error instanceof FirestorePermissionError) {
+        errorEmitter.emit('permission-error', error);
+        return { success: false, message: "Failed to save user profile due to permissions." };
+    }
     if (error.code === 'auth/email-already-in-use') {
         console.warn(`[Action] Email ${email} is already in use.`);
         return { 
@@ -844,26 +852,20 @@ const faqSchema = z.object({
 
 export async function manageFaq(values: z.infer<typeof faqSchema> & { adminId: string; faqId?: string }) {
   const { adminId, faqId, ...data } = values;
-  console.log(`[Action:manageFaq] Admin: ${adminId}, FAQ ID: ${faqId}`);
-
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageFaq] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
-
   const parsed = faqSchema.safeParse(data);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) throw new Error("Invalid data.");
 
   try {
     if (faqId) {
-      console.log(`[Action:manageFaq] Updating FAQ item: ${faqId}`);
       const faqRef = doc(db, "faqs", faqId);
       await updateDoc(faqRef, parsed.data);
       revalidatePath('/');
       return { success: true, message: "FAQ item updated." };
     } else {
-      console.log(`[Action:manageFaq] Adding new FAQ item.`);
       const faqCollectionRef = collection(db, "faqs");
       const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
       await addDoc(faqCollectionRef, dataToAdd);
@@ -871,23 +873,20 @@ export async function manageFaq(values: z.infer<typeof faqSchema> & { adminId: s
       return { success: true, message: "FAQ item added." };
     }
   } catch (e: any) {
-    console.error(`[Action:manageFaq] Firestore error:`, e);
     const error = new FirestorePermissionError({
         path: faqId ? doc(db, "faqs", faqId).path : collection(db, "faqs").path,
         operation: faqId ? "update" : "create",
         requestResourceData: parsed.data
     });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
 export async function deleteFaq(id: string, adminId: string) {
-  console.log(`[Action:deleteFaq] Admin: ${adminId}, FAQ ID: ${id}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:deleteFaq] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   try {
@@ -896,10 +895,9 @@ export async function deleteFaq(id: string, adminId: string) {
     revalidatePath('/');
     return { success: true, message: "FAQ item deleted." };
   } catch (e:any) {
-    console.error(`[Action:deleteFaq] Firestore error:`, e);
     const error = new FirestorePermissionError({ path: doc(db, "faqs", id).path, operation: "delete" });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
@@ -913,24 +911,20 @@ const scheduleSchema = z.object({
 
 export async function manageSchedule(values: z.infer<typeof scheduleSchema> & { adminId: string; scheduleId?: string }) {
   const { adminId, scheduleId, ...data } = values;
-  console.log(`[Action:manageSchedule] Admin: ${adminId}, Schedule ID: ${scheduleId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageSchedule] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   const parsed = scheduleSchema.safeParse(data);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) throw new Error("Invalid data.");
 
   try {
     if (scheduleId) {
-      console.log(`[Action:manageSchedule] Updating schedule item: ${scheduleId}`);
       const scheduleRef = doc(db, "schedule", scheduleId);
       await updateDoc(scheduleRef, parsed.data);
       revalidatePath('/');
       return { success: true, message: "Schedule item updated." };
     } else {
-      console.log(`[Action:manageSchedule] Adding new schedule item.`);
       const scheduleCollectionRef = collection(db, "schedule");
       const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
       await addDoc(scheduleCollectionRef, dataToAdd);
@@ -938,23 +932,20 @@ export async function manageSchedule(values: z.infer<typeof scheduleSchema> & { 
       return { success: true, message: "Schedule item added." };
     }
   } catch (e: any) {
-    console.error(`[Action:manageSchedule] Firestore error:`, e);
     const error = new FirestorePermissionError({
         path: scheduleId ? doc(db, "schedule", scheduleId).path : collection(db, "schedule").path,
         operation: scheduleId ? "update" : "create",
         requestResourceData: parsed.data
     });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
 export async function deleteScheduleItem(id: string, adminId: string) {
-  console.log(`[Action:deleteScheduleItem] Admin: ${adminId}, Schedule ID: ${id}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:deleteScheduleItem] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   try {
@@ -963,10 +954,9 @@ export async function deleteScheduleItem(id: string, adminId: string) {
     revalidatePath('/');
     return { success: true, message: "Schedule item deleted." };
   } catch (e: any) {
-    console.error(`[Action:deleteScheduleItem] Firestore error:`, e);
     const error = new FirestorePermissionError({ path: doc(db, "schedule", id).path, operation: "delete" });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
@@ -980,16 +970,14 @@ const organizerSchema = z.object({
 
 export async function manageOrganizer(values: z.infer<typeof organizerSchema> & { adminId: string; organizerId?: string }) {
   const { adminId, organizerId, ...data } = values;
-  console.log(`[Action:manageOrganizer] Admin: ${adminId}, Organizer ID: ${organizerId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageOrganizer] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   const parsed = organizerSchema.safeParse(data);
   if (!parsed.success) {
     console.error("Organizer validation failed:", parsed.error.flatten().fieldErrors);
-    return { success: false, message: "Invalid data." };
+    throw new Error("Invalid data.");
   }
 
   const dataToSave = { ...parsed.data };
@@ -1001,13 +989,11 @@ export async function manageOrganizer(values: z.infer<typeof organizerSchema> & 
   
   try {
     if (organizerId) {
-      console.log(`[Action:manageOrganizer] Updating organizer: ${organizerId}`);
       const organizerRef = doc(db, "organizers", organizerId);
       await updateDoc(organizerRef, dataToSave);
       revalidatePath('/');
       return { success: true, message: "Organizer updated." };
     } else {
-      console.log(`[Action:manageOrganizer] Adding new organizer.`);
       const organizerCollectionRef = collection(db, "organizers");
       const dataToAdd = { ...dataToSave, createdAt: serverTimestamp() };
       await addDoc(organizerCollectionRef, dataToAdd);
@@ -1015,23 +1001,20 @@ export async function manageOrganizer(values: z.infer<typeof organizerSchema> & 
       return { success: true, message: "Organizer added." };
     }
   } catch(e: any) {
-    console.error(`[Action:manageOrganizer] Firestore error:`, e);
     const error = new FirestorePermissionError({
         path: organizerId ? doc(db, "organizers", organizerId).path : collection(db, "organizers").path,
         operation: organizerId ? "update" : "create",
         requestResourceData: dataToSave
     });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
 export async function deleteOrganizer(id: string, adminId: string) {
-  console.log(`[Action:deleteOrganizer] Admin: ${adminId}, Organizer ID: ${id}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:deleteOrganizer] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   try {
@@ -1040,10 +1023,9 @@ export async function deleteOrganizer(id: string, adminId: string) {
     revalidatePath('/');
     return { success: true, message: "Organizer deleted." };
   } catch (e: any) {
-    console.error(`[Action:deleteOrganizer] Firestore error:`, e);
     const error = new FirestorePermissionError({ path: doc(db, "organizers", id).path, operation: "delete" });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
@@ -1060,24 +1042,20 @@ const promotionSchema = z.object({
 
 export async function managePromotion(values: z.infer<typeof promotionSchema> & { adminId: string; promotionId?: string }) {
   const { adminId, promotionId, ...data } = values;
-  console.log(`[Action:managePromotion] Admin: ${adminId}, Promotion ID: ${promotionId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:managePromotion] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   const parsed = promotionSchema.safeParse(data);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) throw new Error("Invalid data.");
 
   try {
     if (promotionId) {
-      console.log(`[Action:managePromotion] Updating promotion: ${promotionId}`);
       const promotionRef = doc(db, "promotions", promotionId);
       await updateDoc(promotionRef, parsed.data);
       revalidatePath('/');
       return { success: true, message: "Promotion updated." };
     } else {
-      console.log(`[Action:managePromotion] Adding new promotion.`);
       const promotionCollectionRef = collection(db, "promotions");
       const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
       await addDoc(promotionCollectionRef, dataToAdd);
@@ -1085,23 +1063,20 @@ export async function managePromotion(values: z.infer<typeof promotionSchema> & 
       return { success: true, message: "Promotion added." };
     }
   } catch(e: any) {
-    console.error(`[Action:managePromotion] Firestore error:`, e);
     const error = new FirestorePermissionError({
         path: promotionId ? doc(db, "promotions", promotionId).path : collection(db, "promotions").path,
         operation: promotionId ? "update" : "create",
         requestResourceData: parsed.data
     });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
 export async function deletePromotion(id: string, adminId: string) {
-  console.log(`[Action:deletePromotion] Admin: ${adminId}, Promotion ID: ${id}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:deletePromotion] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   try {
@@ -1110,10 +1085,9 @@ export async function deletePromotion(id: string, adminId: string) {
     revalidatePath('/');
     return { success: true, message: "Promotion deleted." };
   } catch(e: any) {
-    console.error(`[Action:deletePromotion] Firestore error:`, e);
     const error = new FirestorePermissionError({ path: doc(db, "promotions", id).path, operation: "delete" });
     errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
+    throw error;
   }
 }
 
@@ -1125,11 +1099,9 @@ const locationSchema = z.object({
 
 export async function manageLocation(values: z.infer<typeof locationSchema> & { adminId: string }) {
   const { adminId, ...data } = values;
-  console.log(`[Action:manageLocation] Admin: ${adminId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageLocation] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   // Set default value
@@ -1139,19 +1111,17 @@ export async function manageLocation(values: z.infer<typeof locationSchema> & { 
   };
 
   const parsed = locationSchema.safeParse(finalData);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) throw new Error("Invalid data.");
   
   const settingsRef = doc(db, "settings", "route");
   try {
-    console.log(`[Action:manageLocation] Updating route settings.`);
     await setDoc(settingsRef, parsed.data);
     revalidatePath('/');
     return { success: true, message: "Route location updated successfully." };
   } catch(e: any) {
-      console.error(`[Action:manageLocation] Firestore error:`, e);
       const error = new FirestorePermissionError({ path: settingsRef.path, operation: "create", requestResourceData: parsed.data });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
   }
 }
 
@@ -1161,11 +1131,9 @@ const eventTimeSchema = z.object({
 
 export async function manageEventTime(values: z.infer<typeof eventTimeSchema> & { adminId: string }) {
   const { adminId, ...data } = values;
-  console.log(`[Action:manageEventTime] Admin: ${adminId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageEventTime] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   // Set default value
@@ -1174,20 +1142,18 @@ export async function manageEventTime(values: z.infer<typeof eventTimeSchema> & 
   }
 
   const parsed = eventTimeSchema.safeParse(finalData);
-  if (!parsed.success) return { success: false, message: "Invalid data." };
+  if (!parsed.success) throw new Error("Invalid data.");
   
   const settingsRef = doc(db, "settings", "event");
   const dataToUpdate = { startTime: parsed.data.eventDate };
   try {
-    console.log(`[Action:manageEventTime] Updating event time settings.`);
     await setDoc(settingsRef, dataToUpdate, { merge: true });
     revalidatePath('/');
     return { success: true, message: "Event time updated successfully." };
   } catch(e: any) {
-      console.error(`[Action:manageEventTime] Firestore error:`, e);
       const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: dataToUpdate });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
   }
 }
 
@@ -1197,27 +1163,23 @@ const generalSettingsSchema = z.object({
 
 export async function manageGeneralSettings(values: z.infer<typeof generalSettingsSchema> & { adminId: string }) {
   const { adminId, ...data } = values;
-  console.log(`[Action:manageGeneralSettings] Admin: ${adminId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageGeneralSettings] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   const parsed = generalSettingsSchema.safeParse(data);
-  if (!parsed.success) return { success: false, message: "Invalid data provided." };
+  if (!parsed.success) throw new Error("Invalid data provided.");
 
   const settingsRef = doc(db, "settings", "event");
   try {
-    console.log(`[Action:manageGeneralSettings] Updating general settings.`);
     await setDoc(settingsRef, parsed.data, { merge: true });
     revalidatePath('/');
     revalidatePath('/register');
     return { success: true, message: "Settings updated." };
   } catch(e: any) {
-      console.error(`[Action:manageGeneralSettings] Firestore error:`, e);
       const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
   }
 }
 
@@ -1232,27 +1194,23 @@ const locationPartnerSchema = z.object({
 
 export async function manageLocationPartner(values: z.infer<typeof locationPartnerSchema> & { adminId: string; partnerId?: string }) {
   const { adminId, partnerId, ...data } = values;
-  console.log(`[Action:manageLocationPartner] Admin: ${adminId}, Partner ID: ${partnerId}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:manageLocationPartner] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   const parsed = locationPartnerSchema.safeParse(data);
   if (!parsed.success) {
     console.error("Location partner validation failed:", parsed.error.flatten().fieldErrors);
-    return { success: false, message: "Invalid data." };
+    throw new Error("Invalid data.");
   }
 
   try {
     if (partnerId) {
-      console.log(`[Action:manageLocationPartner] Updating partner: ${partnerId}`);
       const partnerRef = doc(db, "locationPartners", partnerId);
       await updateDoc(partnerRef, parsed.data);
       revalidatePath('/');
       return { success: true, message: "Location partner updated." };
     } else {
-      console.log(`[Action:manageLocationPartner] Adding new partner.`);
       const partnerCollectionRef = collection(db, "locationPartners");
       const dataToAdd = { ...parsed.data, createdAt: serverTimestamp() };
       await addDoc(partnerCollectionRef, dataToAdd);
@@ -1260,23 +1218,20 @@ export async function manageLocationPartner(values: z.infer<typeof locationPartn
       return { success: true, message: "Location partner added." };
     }
   } catch(e: any) {
-      console.error(`[Action:manageLocationPartner] Firestore error:`, e);
       const error = new FirestorePermissionError({
           path: partnerId ? doc(db, "locationPartners", partnerId).path : collection(db, "locationPartners").path,
           operation: partnerId ? "update" : "create",
           requestResourceData: parsed.data
       });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
   }
 }
 
 export async function deleteLocationPartner(id: string, adminId: string) {
-  console.log(`[Action:deleteLocationPartner] Admin: ${adminId}, Partner ID: ${id}`);
   const isAdmin = await checkAdminPermissions(adminId);
-  console.log(`[Action:deleteLocationPartner] isAdmin check result: ${isAdmin}`);
   if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+    throw new Error("Permission denied.");
   }
   
   try {
@@ -1285,10 +1240,9 @@ export async function deleteLocationPartner(id: string, adminId: string) {
     revalidatePath('/');
     return { success: true, message: "Location partner deleted." };
   } catch(e: any) {
-      console.error(`[Action:deleteLocationPartner] Firestore error:`, e);
       const error = new FirestorePermissionError({ path: doc(db, "locationPartners", id).path, operation: "delete" });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
   }
 }
 
@@ -1352,25 +1306,21 @@ const homepageContentSchema = z.object({
 
 export async function manageHomepageContent(values: z.infer<typeof homepageContentSchema> & { adminId: string }) {
     const { adminId, ...data } = values;
-    console.log(`[Action:manageHomepageContent] Admin: ${adminId}`);
     const isAdmin = await checkAdminPermissions(adminId);
-    console.log(`[Action:manageHomepageContent] isAdmin check result: ${isAdmin}`);
-    if (!isAdmin) return { success: false, message: "Permission denied." };
+    if (!isAdmin) throw new Error("Permission denied.");
     
     const parsed = homepageContentSchema.safeParse(data);
-    if (!parsed.success) return { success: false, message: "Invalid data provided." };
+    if (!parsed.success) throw new Error("Invalid data provided.");
     
     const settingsRef = doc(db, "settings", "event");
     try {
-      console.log(`[Action:manageHomepageContent] Updating homepage content settings.`);
       await setDoc(settingsRef, parsed.data, { merge: true });
       revalidatePath('/');
       return { success: true, message: "Homepage content updated successfully!" };
     } catch(e: any) {
-        console.error(`[Action:manageHomepageContent] Firestore error:`, e);
         const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
         errorEmitter.emit('permission-error', error);
-        return { success: false, message: e.message };
+        throw error;
     }
 }
 
@@ -1383,26 +1333,24 @@ const homepageVisibilitySchema = z.object({
 
 export async function manageHomepageVisibility(values: z.infer<typeof homepageVisibilitySchema> & { adminId: string }) {
     const { adminId, ...data } = values;
-    console.log(`[Action:manageHomepageVisibility] Admin: ${adminId}`);
     const isAdmin = await checkAdminPermissions(adminId);
-    console.log(`[Action:manageHomepageVisibility] isAdmin check result: ${isAdmin}`);
-    if (!isAdmin) return { success: false, message: "Permission denied." };
+    if (!isAdmin) throw new Error("Permission denied.");
     
     const parsed = homepageVisibilitySchema.safeParse(data);
-    if (!parsed.success) return { success: false, message: "Invalid data provided." };
+    if (!parsed.success) throw new Error("Invalid data provided.");
     
     const settingsRef = doc(db, "settings", "event");
     try {
-      console.log(`[Action:manageHomepageVisibility] Updating homepage visibility settings.`);
       await setDoc(settingsRef, parsed.data, { merge: true });
       revalidatePath('/');
       return { success: true, message: "Homepage section visibility updated." };
     } catch(e: any) {
-      console.error(`[Action:manageHomepageVisibility] Firestore error:`, e);
       const error = new FirestorePermissionError({ path: settingsRef.path, operation: "update", requestResourceData: parsed.data });
       errorEmitter.emit('permission-error', error);
-      return { success: false, message: e.message };
+      throw error;
     }
 }
+
+    
 
     

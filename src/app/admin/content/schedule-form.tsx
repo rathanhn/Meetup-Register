@@ -65,23 +65,27 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
-    const result = await manageSchedule({ ...values, adminId: user.uid, scheduleId: scheduleItem?.id });
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await manageSchedule({ ...values, adminId: user.uid, scheduleId: scheduleItem?.id });
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
   const handleDelete = async () => {
     if (!user || !scheduleItem) return;
-    const result = await deleteScheduleItem(scheduleItem.id, user.uid);
-     if (result.success) {
-      toast({ title: "Success", description: result.message });
-      setIsOpen(false);
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await deleteScheduleItem(scheduleItem.id, user.uid);
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+          setIsOpen(false);
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -137,3 +141,5 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
     </Dialog>
   );
 }
+
+    

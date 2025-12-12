@@ -67,11 +67,13 @@ export function LocationManager() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
-    const result = await manageLocation({ ...values, adminId: user.uid });
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+    try {
+        const result = await manageLocation({ ...values, adminId: user.uid });
+        if (result.success) {
+          toast({ title: "Success", description: result.message });
+        }
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
@@ -127,3 +129,5 @@ export function LocationManager() {
     </Card>
   );
 }
+
+    
