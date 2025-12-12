@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, UserCheck } from "lucide-react";
 import { createAndRequestOrganizerAccess } from "@/app/actions";
 import { auth } from "@/lib/firebase";
-import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { Separator } from "./ui/separator";
 import Link from "next/link";
@@ -56,7 +56,6 @@ const organizerRules = [
 export function OrganizerAgreementForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,7 +89,7 @@ export function OrganizerAgreementForm() {
         });
         
         // Log the new user in and redirect to dashboard
-        const userCredential = await signInWithEmailAndPassword(values.email, values.password);
+        const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
         if (userCredential) {
             router.push('/dashboard');
         }
