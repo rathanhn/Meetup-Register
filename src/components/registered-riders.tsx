@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Registration } from '@/lib/types';
@@ -20,6 +20,7 @@ import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from './ui/sheet';
 import { ScrollArea } from './ui/scroll-area';
 import { Skeleton } from './ui/skeleton';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const RiderSkeleton = () => (
     <CarouselItem className="basis-1/3 md:basis-1/4 lg:basis-1/5">
@@ -35,15 +36,16 @@ const RiderSkeleton = () => (
 );
 
 export function RegisteredRiders() {
-  const [registrations, loading, error] = useCollection(
-    query(collection(db, 'registrations'), where('status', '==', 'approved'))
+  const registrationsQuery = useMemoFirebase(
+    () => query(collection(db, 'registrations'), where('status', '==', 'approved')),
+    []
   );
+  const { data: registrations, loading, error } = useCollection<Registration>(registrationsQuery);
 
   const allParticipants = useMemo(() => {
     if (!registrations) return [];
     const participants: { id: string; name: string; photo?: string; type: string }[] = [];
-    registrations.docs.forEach(doc => {
-      const rider = { id: doc.id, ...doc.data() } as Registration;
+    registrations.forEach(rider => {
       participants.push({
         id: `${rider.id}-1`,
         name: rider.fullName,

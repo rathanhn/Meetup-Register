@@ -13,11 +13,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Gift, Loader2, AlertTriangle, MessageCircle } from "lucide-react";
 import type { Offer } from "@/lib/types";
-import { useCollection } from "react-firebase-hooks/firestore";
+import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const OfferSkeleton = () => (
     <Card className="overflow-hidden">
@@ -34,11 +35,13 @@ const OfferSkeleton = () => (
 
 
 export function Offers() {
-  const [promotions, loading, error] = useCollection(
-    query(collection(db, 'promotions'), orderBy('createdAt', 'desc'))
+  const promotionsQuery = useMemoFirebase(
+    () => query(collection(db, 'promotions'), orderBy('createdAt', 'desc')),
+    []
   );
+  const { data: promotions, loading, error } = useCollection<Offer>(promotionsQuery);
 
-  const offers = promotions?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer)) || [];
+  const offers = promotions || [];
 
   const shopWhatsappNumber = "916363148287";
 

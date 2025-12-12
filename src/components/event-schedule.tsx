@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/card";
 import type { ScheduleEvent } from "@/lib/types";
 import { Flag, Coffee, Medal, Users, Cake, Map, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from "./ui/skeleton";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const iconMap: { [key: string]: React.ElementType } = {
     Users,
@@ -45,11 +46,11 @@ const ScheduleSkeleton = () => (
 
 
 export function EventSchedule() {
-    const [schedule, loading, error] = useCollection(
-        query(collection(db, 'schedule'), orderBy('createdAt', 'asc'))
+    const scheduleQuery = useMemoFirebase(
+      () => query(collection(db, 'schedule'), orderBy('createdAt', 'asc')),
+      []
     );
-
-    const scheduleEvents = schedule?.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScheduleEvent)) || [];
+    const { data: scheduleEvents, loading, error } = useCollection<ScheduleEvent>(scheduleQuery);
 
     return (
         <Card>
@@ -62,7 +63,7 @@ export function EventSchedule() {
             <CardContent>
                  {loading && <ScheduleSkeleton />}
                 {error && <p className="text-destructive flex items-center gap-2"><AlertTriangle /> Error loading schedule.</p>}
-                {!loading && !error && (
+                {!loading && !error && scheduleEvents && (
                     <div className="relative pl-6">
                         <div className="absolute left-6 top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
                         {scheduleEvents.map((item, index) => {

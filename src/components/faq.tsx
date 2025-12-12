@@ -3,11 +3,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { HelpCircle, Loader2, AlertTriangle } from "lucide-react"
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { FaqItem } from "@/lib/types";
 import { Skeleton } from "./ui/skeleton";
+import { useMemoFirebase } from "@/firebase/memo";
 
 
 const FaqSkeleton = () => (
@@ -24,11 +25,11 @@ const FaqSkeleton = () => (
 
 
 export function Faq() {
-  const [faqs, loading, error] = useCollection(
-    query(collection(db, 'faqs'), orderBy('createdAt', 'asc'))
+  const faqsQuery = useMemoFirebase(
+    () => query(collection(db, 'faqs'), orderBy('createdAt', 'asc')),
+    []
   );
-
-  const faqItems = faqs?.docs.map(doc => ({ id: doc.id, ...doc.data() } as FaqItem)) || [];
+  const { data: faqItems, loading, error } = useCollection<FaqItem>(faqsQuery);
 
   return (
     <Card>
@@ -41,11 +42,11 @@ export function Faq() {
       <CardContent>
         {loading && <FaqSkeleton />}
         {error && <p className="text-destructive"><AlertTriangle className="inline h-4 w-4 mr-2"/>Error loading FAQs.</p>}
-        {!loading && faqItems.length === 0 && (
+        {!loading && faqItems && faqItems.length === 0 && (
             <p className="text-muted-foreground text-center">No FAQs have been added yet.</p>
         )}
         <div className="space-y-6">
-          {faqItems.map((faq) => (
+          {faqItems && faqItems.map((faq) => (
             <div key={faq.id}>
               <h4 className="font-semibold">{faq.question}</h4>
               <p className="text-muted-foreground mt-1">{faq.answer}</p>

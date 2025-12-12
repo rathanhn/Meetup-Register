@@ -2,15 +2,23 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { onSnapshot, doc, Timestamp } from 'firebase/firestore';
+import { doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { EventSettings, LocationSettings } from '@/lib/types';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { useMemoFirebase } from '@/firebase/memo';
 
 interface CombinedSettings extends EventSettings, LocationSettings {
     originShort?: string;
 }
 
 export function useEventSettings() {
+    const eventSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+    const { data: eventSettingsData, loading: eventLoading, error: eventError } = useDoc<EventSettings>(eventSettingsRef);
+
+    const routeSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'route'), []);
+    const { data: routeSettingsData, loading: routeLoading, error: routeError } = useDoc<LocationSettings>(routeSettingsRef);
+
     const [settings, setSettings] = useState<CombinedSettings>({
         startTime: new Date(),
         registrationsOpen: true,
@@ -18,48 +26,26 @@ export function useEventSettings() {
         destination: '',
         originShort: '',
     });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+
+    const loading = eventLoading || routeLoading;
+    const error = eventError || routeError;
 
     useEffect(() => {
-        const controllers: (()=>void)[] = [];
-
-        const fetchSettings = () => {
-            try {
-                const eventDocRef = doc(db, 'settings', 'event');
-                const unsubEvent = onSnapshot(eventDocRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data() as EventSettings;
-                        const startTime = data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime);
-                        setSettings(prev => ({ ...prev, ...data, startTime }));
-                    }
-                });
-                controllers.push(unsubEvent);
-                
-                const routeDocRef = doc(db, 'settings', 'route');
-                const unsubRoute = onSnapshot(routeDocRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data() as LocationSettings;
-                        const originShort = data.origin?.split(',')[0]?.trimEnd();
-                        setSettings(prev => ({ ...prev, ...data, originShort }));
-                    }
-                });
-                controllers.push(unsubRoute);
-
-            } catch (err) {
-                 setError('Failed to load settings.');
-                 console.error(err);
-            } finally {
-                setLoading(false);
+        setSettings(prev => {
+            const newSettings = { ...prev };
+            if (eventSettingsData) {
+                const startTime = eventSettingsData.startTime instanceof Timestamp 
+                    ? eventSettingsData.startTime.toDate() 
+                    : new Date(eventSettingsData.startTime || Date.now());
+                Object.assign(newSettings, { ...eventSettingsData, startTime });
             }
-        };
+            if (routeSettingsData) {
+                const originShort = routeSettingsData.origin?.split(',')[0]?.trimEnd();
+                Object.assign(newSettings, { ...routeSettingsData, originShort });
+            }
+            return newSettings;
+        });
+    }, [eventSettingsData, routeSettingsData]);
 
-        fetchSettings();
-        
-        return () => {
-            controllers.forEach(unsub => unsub());
-        };
-    }, []);
-
-    return { settings, loading, error };
+    return { settings, loading, error: error ? "Failed to load settings." : null };
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { LocationPartner } from '@/lib/types';
@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Skeleton } from './ui/skeleton';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const PartnerSkeleton = () => (
     <Card className="border-none shadow-none">
@@ -31,11 +32,13 @@ const PartnerSkeleton = () => (
 );
 
 export function LocationPartnerCard() {
-  const [partners, loading, error] = useCollection(
-    query(collection(db, 'locationPartners'), orderBy('createdAt', 'asc'),)
+  const partnersQuery = useMemoFirebase(
+    () => query(collection(db, 'locationPartners'), orderBy('createdAt', 'asc')),
+    []
   );
+  const { data: partners, loading, error } = useCollection<LocationPartner>(partnersQuery);
 
-  const partner = partners?.docs[0]?.data() as LocationPartner | undefined;
+  const partner = partners?.[0];
 
   if (loading) {
     return <PartnerSkeleton />;

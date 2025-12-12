@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import type { QnaQuestion } from '@/lib/types';
 import { QnaItem } from './qna-item';
 import Link from 'next/link';
 import { Skeleton } from './ui/skeleton';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const questionFormSchema = z.object({
   text: z.string().min(10, "Question must be at least 10 characters.").max(500, "Question cannot be longer than 500 characters."),
@@ -63,9 +64,11 @@ export function QnaSection() {
     fetchDisplayName();
   }, [user]);
 
-  const [questions, questionsLoading, questionsError] = useCollection(
-    query(collection(db, 'qna'), orderBy('isPinned', 'desc'))
+  const questionsQuery = useMemoFirebase(
+    () => query(collection(db, 'qna'), orderBy('isPinned', 'desc')),
+    []
   );
+  const { data: questions, loading: questionsLoading, error: questionsError } = useCollection<QnaQuestion>(questionsQuery);
 
   async function onSubmit(values: z.infer<typeof questionFormSchema>) {
     if (!user) {
@@ -152,11 +155,11 @@ export function QnaSection() {
             </div>
           )}
           {questionsError && <p className="text-destructive">Error loading questions.</p>}
-          {questions && questions.docs.length === 0 && (
+          {questions && questions.length === 0 && (
              <p className="text-muted-foreground text-center py-4">No questions yet. Be the first to ask!</p>
           )}
-          {questions?.docs.map(doc => (
-            <QnaItem key={doc.id} question={{ id: doc.id, ...doc.data() } as QnaQuestion} />
+          {questions?.map(q => (
+            <QnaItem key={q.id} question={q} />
           ))}
         </div>
       </CardContent>

@@ -11,12 +11,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { Announcement } from "@/lib/types";
-import { useCollection } from "react-firebase-hooks/firestore";
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "./ui/badge";
 import { Skeleton } from "./ui/skeleton";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const AnnouncementSkeleton = () => (
     <div className="space-y-4">
@@ -32,11 +33,13 @@ const AnnouncementSkeleton = () => (
 );
 
 export function Announcements() {
-  const [announcements, loading, error] = useCollection(
-    query(collection(db, 'announcements'), orderBy('createdAt', 'desc'))
+  const announcementsQuery = useMemoFirebase(
+    () => query(collection(db, 'announcements'), orderBy('createdAt', 'desc')),
+    []
   );
+  const { data: announcements, loading, error } = useCollection<Announcement>(announcementsQuery);
 
-  const announcementDocs = announcements?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement)) || [];
+  const announcementDocs = announcements || [];
 
   return (
     <Card>

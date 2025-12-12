@@ -15,7 +15,7 @@ import { Faq } from "@/components/faq";
 import { QnaSection } from "@/components/qna-section";
 import { RegisteredRiders } from "@/components/registered-riders";
 import Link from "next/link";
-import { useDocument } from "react-firebase-hooks/firestore";
+import { useDoc } from "@/firebase/firestore/use-doc";
 import { doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useMemo } from "react";
@@ -26,28 +26,34 @@ import { Button } from "@/components/ui/button";
 import { LocationPartnerCard } from "@/components/location-partner-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemoFirebase } from "@/firebase/memo";
 
 
 export default function Home() {
-  const [eventSettingsDoc, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const settingsDocRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+  const { data: eventSettingsDoc, loading, error } = useDoc<EventSettings>(settingsDocRef);
 
   const eventSettings = useMemo(() => {
-    if (loading || error || !eventSettingsDoc?.exists()) {
-      return {
-        startTime: new Date("2025-08-15T06:00:00"),
-        registrationsOpen: true,
-        showSchedule: true,
-        showReviews: true,
-        showOrganizers: true,
-        showPromotions: true,
-      } as EventSettings;
+    const defaultSettings = {
+      startTime: new Date("2025-08-15T06:00:00"),
+      registrationsOpen: true,
+      showSchedule: true,
+      showReviews: true,
+      showOrganizers: true,
+      showPromotions: true,
+    } as EventSettings;
+
+    if (!eventSettingsDoc) {
+      return defaultSettings;
     }
-    const data = eventSettingsDoc.data() as EventSettings;
+    
+    const data = eventSettingsDoc;
     return {
+      ...defaultSettings,
       ...data,
-      startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
+      startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime || "2025-08-15T06:00:00"),
     };
-  }, [eventSettingsDoc, loading, error]);
+  }, [eventSettingsDoc]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

@@ -15,13 +15,14 @@ import {
 import type { Organizer } from "@/lib/types";
 import { Users, AlertTriangle, Phone, User } from "lucide-react";
 import { CardHeader, CardTitle } from "./ui/card";
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Skeleton } from "./ui/skeleton";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const OrganizerSkeleton = () => (
     <CarouselItem className="md:basis-1/2 lg:basis-1/3">
@@ -38,11 +39,11 @@ const OrganizerSkeleton = () => (
 );
 
 export function Organizers() {
-  const [organizerData, loading, error] = useCollection(
-    query(collection(db, 'organizers'), orderBy('createdAt', 'asc'))
+  const organizersQuery = useMemoFirebase(
+    () => query(collection(db, 'organizers'), orderBy('createdAt', 'asc')),
+    []
   );
-
-  const organizers = organizerData?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organizer)) || [];
+  const { data: organizers, loading, error } = useCollection<Organizer>(organizersQuery);
 
   return (
     <Card>
@@ -62,7 +63,7 @@ export function Organizers() {
           <CarouselContent>
              {loading && [...Array(3)].map((_, i) => <OrganizerSkeleton key={i} />)}
             {error && <p className="text-destructive"><AlertTriangle/> Error loading organizers.</p>}
-            {organizers.map((organizer) => (
+            {organizers && organizers.map((organizer) => (
               <CarouselItem key={organizer.id} className="md:basis-1/2 lg:basis-1/3">
                 <div className="p-1">
                   <Card className="text-center">
