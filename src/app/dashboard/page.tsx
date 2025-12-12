@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -37,7 +37,9 @@ const DashboardSkeleton = () => (
 );
 
 export default function DashboardPage() {
-    const [user, loading, error] = useAuthState(auth);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
     const router = useRouter();
     const [registrationData, setRegistrationData] = useState<Registration | null>(null);
     const [userData, setUserData] = useState<AppUser | null>(null);
@@ -50,13 +52,20 @@ export default function DashboardPage() {
     }, []);
 
     useEffect(() => {
-        if (loading) return;
-        if (!user) {
-            console.log("[Dashboard] User not logged in. Redirecting to login.");
-            const currentParams = new URLSearchParams(window.location.search);
-            router.push(`/login?${currentParams.toString()}`);
-            return;
-        }
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+            setLoading(false);
+            if (!user) {
+                console.log("[Dashboard] User not logged in. Redirecting to login.");
+                const currentParams = new URLSearchParams(window.location.search);
+                router.push(`/login?${currentParams.toString()}`);
+            }
+        }, setError);
+        return () => unsubscribe();
+    }, [router]);
+
+    useEffect(() => {
+        if (!user) return;
 
         console.log("[Dashboard] User is logged in. Fetching data...");
         const unsubscribes: (() => void)[] = [];
@@ -69,8 +78,6 @@ export default function DashboardPage() {
                     if (doc.exists()) {
                         setUserData({ id: doc.id, ...doc.data() } as AppUser);
                     } else {
-                        // This case can happen if a user is authenticated but their user doc is not yet created.
-                        // We can either log them out or wait. For now, we'll just not set user data.
                         console.warn(`User document not found for UID: ${user.uid}`);
                         setUserData(null);
                     }
@@ -101,7 +108,7 @@ export default function DashboardPage() {
             unsubscribes.forEach(unsub => unsub());
         };
 
-    }, [user, loading, router]);
+    }, [user]);
 
     const getRegistrationStatusContent = () => {
         if (!registrationData) return null;
@@ -110,9 +117,7 @@ export default function DashboardPage() {
             case 'approved':
                 return <DigitalTicket registration={registrationData} user={user!} />;
             case 'pending':
-                const names = registrationData.registrationType === 'duo' 
-                    ? `${registrationData.fullName} & ${registrationData.fullName2}` 
-                    : registrationData.fullName;
+                const names = registrationData.fullName;
                 const adminUrl = `${origin}/admin`;
                 const message = `Hi Team Telefun, please review my registration.\n\nName(s): ${names}\nRegistration ID: ${registrationData.id}\n\nManage here: ${adminUrl}`;
                 const whatsappUrl = `https://wa.me/916363148287?text=${encodeURIComponent(message)}`;

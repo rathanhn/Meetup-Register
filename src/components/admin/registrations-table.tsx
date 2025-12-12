@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, doc, getDoc, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import {
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle, Check, X, Ban, Trash2, Users, Phone, User, ShieldAlert } from 'lucide-react';
+import { Loader2, AlertTriangle, Check, X, Ban, Trash2, Users, Phone, User as UserIcon, ShieldAlert } from 'lucide-react';
 import type { Registration, UserRole } from '@/lib/types';
 import { Button } from '../ui/button';
 import { updateRegistrationStatus, deleteRegistration } from '@/app/actions';
@@ -25,6 +25,7 @@ import { Separator } from '../ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Card, CardContent } from '../ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const TableSkeleton = () => (
     [...Array(3)].map((_, i) => (
@@ -67,20 +68,28 @@ const CardSkeleton = () => (
 )
 
 export function RegistrationsTable() {
-  const [registrations, loading, error] = useCollection(
-      query(collection(db, 'registrations'), orderBy('createdAt', 'desc'))
-  );
-  const [user, authLoading] = useAuthState(auth);
+  const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), orderBy('createdAt', 'desc')), []);
+  const { data: registrations, loading, error } = useCollection<Registration>(registrationsQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
       if (user) {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
-          setUserRole(userDoc.data().role);
+          setUserRole(userDoc.data().role as UserRole);
         }
       }
     };
@@ -89,7 +98,7 @@ export function RegistrationsTable() {
   
   const { pendingRegistrations, cancellationRequests } = useMemo(() => {
     if (!registrations) return { pendingRegistrations: [], cancellationRequests: [] };
-    const allRegs = registrations.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
+    const allRegs = registrations;
     return {
         pendingRegistrations: allRegs.filter(reg => reg.status === 'pending'),
         cancellationRequests: allRegs.filter(reg => reg.status === 'cancellation_requested')
@@ -143,7 +152,7 @@ export function RegistrationsTable() {
     return (
       <div className="text-destructive flex items-center gap-2 p-4">
         <AlertTriangle />
-        <p>Error loading registrations: {error.message}</p>
+        <p>Error loading registrations: {error}</p>
       </div>
     );
   }
@@ -167,7 +176,7 @@ export function RegistrationsTable() {
                                     <div className="flex items-center gap-3">
                                         <Avatar>
                                             <AvatarImage src={reg.photoURL} alt={reg.fullName} />
-                                            <AvatarFallback><User /></AvatarFallback>
+                                            <AvatarFallback><UserIcon /></AvatarFallback>
                                         </Avatar>
                                         <div>
                                             <p className="font-semibold">{reg.fullName}</p>
@@ -213,7 +222,7 @@ export function RegistrationsTable() {
                             <TableCell>
                                 <Avatar>
                                     <AvatarImage src={reg.photoURL} alt={reg.fullName} />
-                                    <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                                    <AvatarFallback><UserIcon className="h-4 w-4" /></AvatarFallback>
                                 </Avatar>
                             </TableCell>
                             <TableCell className="font-medium">{reg.fullName}</TableCell>

@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,14 +12,25 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, Edit, Trash2, PlusCircle, ShieldAlert } from 'lucide-react';
 import type { ScheduleEvent, UserRole } from '@/lib/types';
 import { ScheduleForm } from './schedule-form';
+import { useMemoFirebase } from '@/firebase/memo';
 
 export function ScheduleManager() {
-  const [schedule, loading, error] = useCollection(query(collection(db, 'schedule'), orderBy('createdAt', 'asc')));
-  const [user, authLoading] = useAuthState(auth);
+  const scheduleQuery = useMemoFirebase(() => query(collection(db, 'schedule'), orderBy('createdAt', 'asc')), []);
+  const { data: schedule, loading, error } = useCollection<ScheduleEvent>(scheduleQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduleEvent | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -32,7 +43,7 @@ export function ScheduleManager() {
     }
   }, [user]);
 
-  const scheduleItems = schedule?.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScheduleEvent)) || [];
+  const scheduleItems = schedule || [];
 
   const handleEdit = (item: ScheduleEvent) => {
     setSelectedItem(item);

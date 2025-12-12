@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { Button } from './ui/button';
 import Link from 'next/link';
-import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -22,9 +21,18 @@ import type { UserRole } from '@/lib/types';
 import { doc, getDoc } from 'firebase/firestore';
 
 export function AuthButton() {
-  const [user, loading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);

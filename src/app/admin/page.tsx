@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Header } from '@/components/header';
@@ -23,8 +23,17 @@ import { FinishersListTable } from '@/components/admin/finishers-list-table';
 import Link from 'next/link';
 
 export default function AdminPage() {
-  const [user, loading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) {

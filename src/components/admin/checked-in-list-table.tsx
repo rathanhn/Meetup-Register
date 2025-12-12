@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
@@ -22,6 +22,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Card, CardContent } from '../ui/card';
 import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useMemoFirebase } from '@/firebase/memo';
 
 type CheckedInParticipant = {
     id: string;
@@ -46,17 +47,15 @@ const TableSkeleton = () => (
 
 
 export function CheckedInListTable() {
-  const [registrations, loading, error] = useCollection(
-    query(collection(db, 'registrations'), orderBy('createdAt', 'desc'))
-  );
+  const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), orderBy('createdAt', 'desc')), []);
+  const { data: registrations, loading, error } = useCollection<Registration>(registrationsQuery);
   const [searchTerm, setSearchTerm] = useState('');
 
   const checkedInParticipants = useMemo(() => {
     if (!registrations) return [];
     
     const participants: CheckedInParticipant[] = [];
-    registrations.docs.forEach(doc => {
-      const reg = { id: doc.id, ...doc.data() } as Registration;
+    registrations.forEach(reg => {
       if (reg.status !== 'approved') return;
 
       if (reg.rider1CheckedIn) {
@@ -231,5 +230,3 @@ export function CheckedInListTable() {
     </div>
   );
 }
-
-    

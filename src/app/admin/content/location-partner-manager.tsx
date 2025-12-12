@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -12,13 +12,24 @@ import type { LocationPartner, UserRole } from '@/lib/types';
 import { LocationPartnerForm } from './location-partner-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
+import { useMemoFirebase } from '@/firebase/memo';
 
 export function LocationPartnerManager() {
-  const [partners, loading, error] = useCollection(query(collection(db, 'locationPartners'), orderBy('createdAt', 'asc')));
-  const [user, authLoading] = useAuthState(auth);
+  const partnersQuery = useMemoFirebase(() => query(collection(db, 'locationPartners'), orderBy('createdAt', 'asc')), []);
+  const { data: partners, loading, error } = useCollection<LocationPartner>(partnersQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<LocationPartner | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -31,7 +42,7 @@ export function LocationPartnerManager() {
     }
   }, [user]);
 
-  const partnerItems = partners?.docs.map(doc => ({ id: doc.id, ...doc.data() } as LocationPartner)) || [];
+  const partnerItems = partners || [];
 
   const handleEdit = (item: LocationPartner) => {
     setSelectedItem(item);

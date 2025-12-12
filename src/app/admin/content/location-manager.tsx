@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { manageLocation } from "@/app/actions";
 import type { LocationSettings, UserRole } from "@/lib/types";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useDocument } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const formSchema = z.object({
   origin: z.string().min(5, "Origin is required."),
@@ -24,16 +25,26 @@ const formSchema = z.object({
 });
 
 export function LocationManager() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   
-  const [locationSettings, loading, error] = useDocument(doc(db, 'settings', 'route'));
+  const locationSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'route'), []);
+  const { data: locationSettings, loading, error } = useDoc<LocationSettings>(locationSettingsRef);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { origin: "", destination: "" },
   });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
    useEffect(() => {
     if (user) {
@@ -47,8 +58,8 @@ export function LocationManager() {
   }, [user]);
 
   useEffect(() => {
-    if (locationSettings?.exists()) {
-      form.reset(locationSettings.data() as LocationSettings);
+    if (locationSettings) {
+      form.reset(locationSettings);
     }
   }, [locationSettings, form]);
 

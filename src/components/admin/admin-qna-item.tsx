@@ -2,8 +2,8 @@
 "use client";
 
 import type { QnaQuestion, QnaReply, UserRole } from "@/lib/types";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addReply, deleteQuestion, togglePinQuestion } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Pin, PinOff, ShieldCheck, Trash2, User } from "lucide-react";
+import { Loader2, Pin, PinOff, ShieldCheck, Trash2, User as UserIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "../ui/badge";
 import { useEffect, useState } from "react";
@@ -30,7 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const replyFormSchema = z.object({
   text: z.string().min(1, "Reply cannot be empty.").max(500),
@@ -41,7 +42,8 @@ interface AdminQnaItemProps {
 }
 
 export function AdminQnaItem({ question }: AdminQnaItemProps) {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const { toast } = useToast();
   const form = useForm<z.infer<typeof replyFormSchema>>({
     resolver: zodResolver(replyFormSchema),
@@ -53,6 +55,13 @@ export function AdminQnaItem({ question }: AdminQnaItemProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [adminDisplayName, setAdminDisplayName] = useState("Admin");
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
    useEffect(() => {
     const fetchUserData = async () => {
@@ -70,9 +79,8 @@ export function AdminQnaItem({ question }: AdminQnaItemProps) {
 
   const canModerate = userRole === 'admin' || userRole === 'superadmin';
 
-  const [replies, repliesLoading] = useCollection(
-    query(collection(db, 'qna', question.id, 'replies'), orderBy('createdAt', 'asc'))
-  );
+  const repliesQuery = useMemoFirebase(() => query(collection(db, 'qna', question.id, 'replies'), orderBy('createdAt', 'asc')), [question.id]);
+  const { data: replies, loading: repliesLoading } = useCollection<QnaReply>(repliesQuery);
   
   async function onReplySubmit(values: z.infer<typeof replyFormSchema>) {
     if (!user) {
@@ -129,7 +137,7 @@ export function AdminQnaItem({ question }: AdminQnaItemProps) {
         <div className="flex gap-3 sm:gap-4">
             <Avatar>
                 <AvatarImage src={question.userPhotoURL ?? undefined} alt={question.userName} />
-                <AvatarFallback><User /></AvatarFallback>
+                <AvatarFallback><UserIcon /></AvatarFallback>
             </Avatar>
             <div className="w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -146,16 +154,15 @@ export function AdminQnaItem({ question }: AdminQnaItemProps) {
         </div>
 
         {/* Replies */}
-        {(replies && replies.docs.length > 0) && (
+        {(replies && replies.length > 0) && (
             <div className="pl-4 sm:pl-16 space-y-4">
                 <Separator />
-                {replies.docs.map(doc => {
-                    const reply = { id: doc.id, ...doc.data() } as QnaReply;
+                {replies.map(reply => {
                     return (
                         <div key={reply.id} className="flex gap-3 sm:gap-4">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src={reply.userPhotoURL ?? undefined} alt={reply.userName} />
-                                <AvatarFallback><User className="h-4 w-4"/></AvatarFallback>
+                                <AvatarFallback><UserIcon className="h-4 w-4"/></AvatarFallback>
                             </Avatar>
                             <div className="w-full">
                                 <div className="flex items-center gap-2 flex-wrap">

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -40,9 +40,18 @@ const QnaItemSkeleton = () => (
 
 
 export function QnaSection() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const { toast } = useToast();
   const [userDisplayName, setUserDisplayName] = useState("Rider");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const form = useForm<z.infer<typeof questionFormSchema>>({
     resolver: zodResolver(questionFormSchema),
@@ -69,6 +78,7 @@ export function QnaSection() {
     []
   );
   const { data: questions, loading: questionsLoading, error: questionsError } = useCollection<QnaQuestion>(questionsQuery);
+  const questionDocs = questions || [];
 
   async function onSubmit(values: z.infer<typeof questionFormSchema>) {
     if (!user) {
@@ -155,10 +165,10 @@ export function QnaSection() {
             </div>
           )}
           {questionsError && <p className="text-destructive">Error loading questions.</p>}
-          {questions && questions.length === 0 && (
+          {questions && questionDocs.length === 0 && (
              <p className="text-muted-foreground text-center py-4">No questions yet. Be the first to ask!</p>
           )}
-          {questions?.map(q => (
+          {questionDocs?.map(q => (
             <QnaItem key={q.id} question={q} />
           ))}
         </div>

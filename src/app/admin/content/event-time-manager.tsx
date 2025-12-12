@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { manageEventTime } from "@/app/actions";
 import type { EventSettings, UserRole } from "@/lib/types";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useDocument } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, Timestamp, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, Save, Calendar as CalendarIcon, ShieldAlert } from "lucide-react";
@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const formSchema = z.object({
   eventDate: z.date({
@@ -28,11 +29,21 @@ const formSchema = z.object({
 });
 
 export function EventTimeManager() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
   
-  const [eventSettings, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const eventSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+  const { data: eventSettings, loading, error } = useDoc<EventSettings>(eventSettingsRef);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,8 +62,8 @@ export function EventTimeManager() {
   }, [user]);
 
   useEffect(() => {
-    if (eventSettings?.exists()) {
-      const data = eventSettings.data() as EventSettings;
+    if (eventSettings) {
+      const data = eventSettings;
       if (data.startTime instanceof Timestamp) {
         form.reset({ eventDate: data.startTime.toDate() });
       }

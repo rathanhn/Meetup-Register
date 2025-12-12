@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useState, useMemo, useEffect } from 'react';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, doc, getDoc, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import {
@@ -26,8 +26,8 @@ import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import type { AppUser, UserRole } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserRole } from '@/app/actions';
-import { useEffect } from 'react';
 import { Skeleton } from '../ui/skeleton';
+import { useMemoFirebase } from '@/firebase/memo';
 
 const TableSkeleton = () => (
     [...Array(3)].map((_, i) => (
@@ -41,27 +41,26 @@ const TableSkeleton = () => (
 );
 
 export function UserRolesManager() {
-  const [loggedInUser, authLoading] = useAuthState(auth);
+  const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   const [isRoleLoading, setIsRoleLoading] = useState(true);
 
-  // Query for users with elevated roles
-  const [adminUsers, adminUsersLoading, adminUsersError] = useCollection(
-    query(
-      collection(db, 'users'), 
-      where('role', 'in', ['superadmin', 'admin', 'viewer'])
-    )
-  );
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setLoggedInUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+  
+  const adminUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('role', 'in', ['superadmin', 'admin', 'viewer'])), []);
+  const { data: adminUsers, loading: adminUsersLoading, error: adminUsersError } = useCollection<AppUser>(adminUsersQuery);
 
-  // Query for users who have requested access
-  const [requestingUsers, requestingUsersLoading, requestingUsersError] = useCollection(
-    query(
-      collection(db, 'users'),
-      where('accessRequest.status', '==', 'pending_review')
-    )
-  );
+  const requestingUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('accessRequest.status', '==', 'pending_review')), []);
+  const { data: requestingUsers, loading: requestingUsersLoading, error: requestingUsersError } = useCollection<AppUser>(requestingUsersQuery);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -69,7 +68,7 @@ export function UserRolesManager() {
       if (loggedInUser) {
         const userDoc = await getDoc(doc(db, "users", loggedInUser.uid));
         if (userDoc.exists()) {
-          setCurrentUserRole(userDoc.data().role);
+          setCurrentUserRole(userDoc.data().role as UserRole);
         }
       }
       setIsRoleLoading(false);
@@ -79,14 +78,12 @@ export function UserRolesManager() {
 
   const allUsers = useMemo(() => {
     const usersMap = new Map<string, AppUser>();
-
-    adminUsers?.docs.forEach(doc => {
-        const user = { id: doc.id, ...doc.data() } as AppUser;
+    
+    adminUsers?.forEach(user => {
         usersMap.set(user.id, user);
     });
 
-    requestingUsers?.docs.forEach(doc => {
-        const user = { id: doc.id, ...doc.data() } as AppUser;
+    requestingUsers?.forEach(user => {
         if (!usersMap.has(user.id)) {
             usersMap.set(user.id, user);
         }

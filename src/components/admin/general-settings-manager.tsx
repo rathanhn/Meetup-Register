@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, ToggleLeft, ToggleRight, Settings, ShieldAlert } from 'lucide-react';
@@ -14,13 +14,22 @@ import { Badge } from '../ui/badge';
 import { manageGeneralSettings } from '@/app/actions';
 
 export function GeneralSettingsManager() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [eventSettings, setEventSettings] = useState<EventSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
    useEffect(() => {
     if (user) {

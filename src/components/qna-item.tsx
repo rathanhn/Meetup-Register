@@ -3,8 +3,8 @@
 
 import type { QnaQuestion, QnaReply } from "@/lib/types";
 import { useState, useEffect } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -17,9 +17,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addReply } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { CornerDownRight, Loader2, Pin, ShieldCheck, User } from "lucide-react";
+import { CornerDownRight, Loader2, Pin, ShieldCheck, User as UserIcon } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
+import { useMemoFirebase } from "@/firebase/memo";
 
 const replyFormSchema = z.object({
   text: z.string().min(1, "Reply cannot be empty.").max(500, "Reply cannot be longer than 500 characters."),
@@ -30,10 +31,17 @@ interface QnaItemProps {
 }
 
 export function QnaItem({ question }: QnaItemProps) {
-  const [user] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
   const [isReplying, setIsReplying] = useState(false);
   const { toast } = useToast();
   const [userDisplayName, setUserDisplayName] = useState("Rider");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const form = useForm<z.infer<typeof replyFormSchema>>({
     resolver: zodResolver(replyFormSchema),
@@ -53,9 +61,8 @@ export function QnaItem({ question }: QnaItemProps) {
     fetchDisplayName();
   }, [user]);
 
-  const [replies, repliesLoading] = useCollection(
-    query(collection(db, 'qna', question.id, 'replies'), orderBy('createdAt', 'asc'))
-  );
+  const repliesQuery = useMemoFirebase(() => query(collection(db, 'qna', question.id, 'replies'), orderBy('createdAt', 'asc')), [question.id]);
+  const { data: replies, loading: repliesLoading } = useCollection<QnaReply>(repliesQuery);
   
   async function onReplySubmit(values: z.infer<typeof replyFormSchema>) {
     if (!user) return;
@@ -82,7 +89,7 @@ export function QnaItem({ question }: QnaItemProps) {
         <div className="flex flex-col sm:flex-row gap-4">
             <Avatar>
                 <AvatarImage src={question.userPhotoURL ?? undefined} alt={question.userName} />
-                <AvatarFallback><User /></AvatarFallback>
+                <AvatarFallback><UserIcon /></AvatarFallback>
             </Avatar>
             <div className="w-full">
                 <div className="flex items-center justify-between">
@@ -136,16 +143,15 @@ export function QnaItem({ question }: QnaItemProps) {
         )}
 
         {/* Replies */}
-        {replies && replies.docs.length > 0 && (
+        {replies && replies.length > 0 && (
             <div className="pl-0 sm:pl-14 space-y-4">
                 <Separator />
-                {replies.docs.map(doc => {
-                    const reply = { id: doc.id, ...doc.data() } as QnaReply;
+                {replies.map(reply => {
                     return (
                         <div key={reply.id} className="flex gap-4">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src={reply.userPhotoURL ?? undefined} alt={reply.userName} />
-                                <AvatarFallback><User className="h-4 w-4"/></AvatarFallback>
+                                <AvatarFallback><UserIcon className="h-4 w-4"/></AvatarFallback>
                             </Avatar>
                             <div className="w-full">
                                 <div className="flex items-center gap-2 flex-wrap">

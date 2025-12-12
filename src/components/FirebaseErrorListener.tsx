@@ -1,14 +1,21 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export function FirebaseErrorListener() {
-    const [user] = useAuthState(auth);
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         const handler = (error: FirestorePermissionError) => {

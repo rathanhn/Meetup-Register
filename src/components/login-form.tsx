@@ -19,10 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { auth, db } from '@/lib/firebase';
-import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, type User } from 'firebase/auth';
 import { useRouter } from "next/navigation";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -41,13 +40,7 @@ const GoogleIcon = () => (
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [
-    signInWithEmailAndPassword,
-    user,
-    loading,
-    error,
-  ] = useSignInWithEmailAndPassword(auth);
-  
+  const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -59,28 +52,24 @@ export function LoginForm() {
   });
 
   const { formState: { isSubmitting } } = form;
-  const isProcessing = isSubmitting || loading || googleLoading;
+  const isProcessing = isSubmitting || emailLoading || googleLoading;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    await signInWithEmailAndPassword(values.email, values.password);
-  }
-
-  useEffect(() => {
-    if (user) {
+    setEmailLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       router.push('/dashboard');
-    }
-  }, [user, router]);
-  
-  useEffect(() => {
-    if (error) {
-      toast({
+    } catch(e: any) {
+       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message.replace('Firebase: ', ''),
+        description: e.message?.replace('Firebase: ', ''),
       });
+    } finally {
+        setEmailLoading(false);
     }
-  }, [error, toast]);
-
+  }
+  
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
@@ -169,7 +158,7 @@ export function LoginForm() {
               )}
             />
             <Button type="submit" className="w-full" disabled={isProcessing}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(isSubmitting || emailLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In with Email
             </Button>
           </form>

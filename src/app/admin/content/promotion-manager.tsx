@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useState, useEffect } from 'react';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,15 +13,26 @@ import { Loader2, AlertTriangle, Edit, Trash2, PlusCircle } from 'lucide-react';
 import type { Offer } from '@/lib/types';
 import { PromotionForm } from './promotion-form';
 import Image from 'next/image';
+import { useMemoFirebase } from '@/firebase/memo';
 
 export function PromotionManager() {
-  const [promotions, loading, error] = useCollection(query(collection(db, 'promotions'), orderBy('createdAt', 'asc')));
-  const [user, authLoading] = useAuthState(auth);
+  const promotionsQuery = useMemoFirebase(() => query(collection(db, 'promotions'), orderBy('createdAt', 'asc')), []);
+  const { data: promotions, loading, error } = useCollection<Offer>(promotionsQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Offer | null>(null);
 
-  const promotionItems = promotions?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer)) || [];
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const promotionItems = promotions || [];
 
   const handleEdit = (item: Offer) => {
     setSelectedItem(item);

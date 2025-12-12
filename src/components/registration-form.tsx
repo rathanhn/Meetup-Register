@@ -24,7 +24,7 @@ import { createAccountAndRegisterRider } from "@/app/actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "./ui/separator";
 import { auth, db } from "@/lib/firebase";
-import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
@@ -101,7 +101,6 @@ const GoogleIcon = () => (
 export function RegistrationForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const [signInWithEmailAndPassword, , , signInError] = useSignInWithEmailAndPassword(auth);
   const [sameAsPhone, setSameAsPhone] = useState(false);
   
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -197,6 +196,7 @@ export function RegistrationForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsProcessing(true);
+    console.log("[Action] Client-side submission with values:", values);
 
     try {
         let finalPhotoUrl: string | undefined = undefined;
@@ -225,19 +225,8 @@ export function RegistrationForm() {
           action: <PartyPopper className="text-primary" />,
         });
 
-        const userCredential = await signInWithEmailAndPassword(values.email, values.password);
-
-        if (userCredential) {
-            if (result.existingUser && result.dataForExistingUser) {
-                const uid = userCredential.user.uid;
-                const registrationRef = doc(db, "registrations", uid);
-                const dataToSave = Object.fromEntries(Object.entries(result.dataForExistingUser).filter(([_, v]) => v !== null));
-                await setDoc(registrationRef, { ...dataToSave, uid, createdAt: serverTimestamp() });
-            }
-            router.push('/dashboard');
-        } else {
-             throw new Error(signInError?.message || "Registration succeeded, but login failed. Please go to the login page.");
-        }
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        router.push('/dashboard');
 
       } else {
         throw new Error(result.message || "An unknown error occurred.");

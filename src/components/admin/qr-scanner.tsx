@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Registration, UserRole } from '@/lib/types';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -30,7 +30,8 @@ type ScannedQrData = {
 };
 
 export function QrScanner() {
-  const [user, authLoading] = useAuthState(auth);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -45,6 +46,14 @@ export function QrScanner() {
   const animationFrameId = useRef<number>();
   
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -195,7 +204,6 @@ export function QrScanner() {
     setIsProcessing(true);
     const result = await checkInRider({
         registrationId: scannedData.registrationId,
-        riderNumber: scannedData.rider,
         adminId: user.uid,
     });
     if (result.success) {
@@ -216,7 +224,6 @@ export function QrScanner() {
     setIsProcessing(true);
     const result = await finishRider({
         registrationId: scannedData.registrationId,
-        riderNumber: scannedData.rider,
         adminId: user.uid,
     });
     if (result.success) {
@@ -237,7 +244,6 @@ export function QrScanner() {
     setIsProcessing(true);
     const result = await revertCheckIn({
         registrationId: scannedData.registrationId,
-        riderNumber: scannedData.rider,
         adminId: user.uid,
     });
     if (result.success) {
@@ -254,7 +260,6 @@ export function QrScanner() {
     setIsProcessing(true);
     const result = await revertFinish({
         registrationId: scannedData.registrationId,
-        riderNumber: scannedData.rider,
         adminId: user.uid,
     });
     if (result.success) {
@@ -266,13 +271,8 @@ export function QrScanner() {
     setIsProcessing(false);
   }
 
-  const riderIsCheckedIn = scannedRegistration && scannedData ? 
-    (scannedData.rider === 1 ? scannedRegistration.rider1CheckedIn : scannedRegistration.rider2CheckedIn)
-    : false;
-
-  const riderIsFinished = scannedRegistration && scannedData ? 
-    (scannedData.rider === 1 ? scannedRegistration.rider1Finished : scannedRegistration.rider2Finished)
-    : false;
+  const riderIsCheckedIn = scannedRegistration?.rider1CheckedIn;
+  const riderIsFinished = scannedRegistration?.rider1Finished;
 
 
   if (authLoading) {
@@ -330,9 +330,9 @@ export function QrScanner() {
                 ) : scannedRegistration && (
                     <div className="space-y-4 text-sm">
                         <div>
-                            <p><strong>Name:</strong> {scannedData?.rider === 1 ? scannedRegistration.fullName : scannedRegistration.fullName2}</p>
-                            <p><strong>Age:</strong> {scannedData?.rider === 1 ? scannedRegistration.age : scannedRegistration.age2}</p>
-                            <p><strong>Phone:</strong> {scannedData?.rider === 1 ? scannedRegistration.phoneNumber : scannedRegistration.phoneNumber2}</p>
+                            <p><strong>Name:</strong> {scannedRegistration.fullName}</p>
+                            <p><strong>Age:</strong> {scannedRegistration.age}</p>
+                            <p><strong>Phone:</strong> {scannedRegistration.phoneNumber}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                              <div><strong>Checked-in:</strong> {riderIsCheckedIn ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="mr-1 h-3 w-3" />Yes</Badge> : <Badge variant="secondary">No</Badge>}</div>
@@ -390,4 +390,3 @@ export function QrScanner() {
     </div>
   );
 }
-

@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { collection, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,13 +12,24 @@ import { Loader2, AlertTriangle, Edit, PlusCircle, ShieldAlert } from 'lucide-re
 import type { Organizer, UserRole } from '@/lib/types';
 import { OrganizerForm } from './organizer-form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useMemoFirebase } from '@/firebase/memo';
 
 export function OrganizerManager() {
-  const [organizers, loading, error] = useCollection(query(collection(db, 'organizers'), orderBy('createdAt', 'asc')));
-  const [user, authLoading] = useAuthState(auth);
+  const organizersQuery = useMemoFirebase(() => query(collection(db, 'organizers'), orderBy('createdAt', 'asc')), []);
+  const { data: organizers, loading, error } = useCollection<Organizer>(organizersQuery);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Organizer | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -31,7 +42,7 @@ export function OrganizerManager() {
     }
   }, [user]);
 
-  const organizerItems = organizers?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organizer)) || [];
+  const organizerItems = organizers || [];
 
   const handleEdit = (item: Organizer) => {
     setSelectedItem(item);
