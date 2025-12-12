@@ -48,11 +48,11 @@ export function FaqForm({ isOpen, setIsOpen, faqItem, user }: FaqFormProps) {
 
   useEffect(() => {
     if (isOpen) {
-        if (faqItem) {
-          form.reset(faqItem);
-        } else {
-          form.reset({ question: "", answer: "" });
-        }
+      if (faqItem) {
+        form.reset(faqItem);
+      } else {
+        form.reset({ question: "", answer: "" });
+      }
     }
   }, [faqItem, form, isOpen]);
 
@@ -61,26 +61,28 @@ export function FaqForm({ isOpen, setIsOpen, faqItem, user }: FaqFormProps) {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
     try {
-        const result = await manageFaq({ ...values, adminId: user.uid, faqId: faqItem?.id });
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await manageFaq({ ...values, adminId: user.uid, faqId: faqItem?.id, token });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
-  
+
   const handleDelete = async () => {
     if (!user || !faqItem) return;
     try {
-        const result = await deleteFaq(faqItem.id, user.uid);
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await deleteFaq(faqItem.id, user.uid, token);
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -96,23 +98,23 @@ export function FaqForm({ isOpen, setIsOpen, faqItem, user }: FaqFormProps) {
             <FormField name="question" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Question</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField name="answer" control={form.control} render={({ field }) => (
+            <FormField name="answer" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Answer</FormLabel><FormControl><Textarea rows={5} {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            
+
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between w-full pt-2">
-                {faqItem ? (
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this FAQ item.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                ) : <div />}
+              {faqItem ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this FAQ item.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : <div />}
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {faqItem ? "Save Changes" : "Create FAQ"}
@@ -125,4 +127,3 @@ export function FaqForm({ isOpen, setIsOpen, faqItem, user }: FaqFormProps) {
   );
 }
 
-    

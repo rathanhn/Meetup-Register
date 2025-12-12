@@ -159,7 +159,7 @@ export default function DashboardPage() {
                     <Card className="text-center">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2">
-                                <Clock className="text-primary"/> Cancellation Pending
+                                <Clock className="text-primary" /> Cancellation Pending
                             </CardTitle>
                             <CardDescription>
                                 Your request to cancel your registration has been submitted and is pending review by an admin.
@@ -168,14 +168,14 @@ export default function DashboardPage() {
                     </Card>
                 );
             case 'cancelled':
-                 return (
+                return (
                     <Card className="text-center">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
                                 <Ban /> Registration Cancelled
                             </CardTitle>
                             <CardDescription>
-                               Your registration for this event has been cancelled as per your request.
+                                Your registration for this event has been cancelled as per your request.
                             </CardDescription>
                         </CardHeader>
                     </Card>
@@ -187,7 +187,7 @@ export default function DashboardPage() {
 
     const renderContent = () => {
         if (!registrationData || !user || !userData) {
-             return (
+            return (
                 <Card>
                     <CardHeader>
                         <CardTitle>Welcome to the Ride!</CardTitle>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <Button asChild>
+                        <Button asChild>
                             <Link href="/register">
                                 <Ticket className="h-4 w-4 mr-2" />
                                 Register as a Rider
@@ -208,56 +208,76 @@ export default function DashboardPage() {
         }
 
         const registrationStatusContent = getRegistrationStatusContent();
-        
+
         return (
-             <Tabs defaultValue="ticket" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="ticket"><Ticket className="w-4 h-4 mr-2" />My Ticket</TabsTrigger>
-                    <TabsTrigger value="community"><MessageSquare className="w-4 h-4 mr-2" />Community Hub</TabsTrigger>
-                    <TabsTrigger value="actions"><ListChecks className="w-4 h-4 mr-2" />Actions</TabsTrigger>
+            <Tabs defaultValue="ticket" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+                    <TabsTrigger value="ticket" className="py-2.5 flex flex-col sm:flex-row gap-2">
+                        <Ticket className="w-4 h-4" />
+                        <span className="text-xs sm:text-sm">Ticket</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="community" className="py-2.5 flex flex-col sm:flex-row gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="text-xs sm:text-sm">Community</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="actions" className="py-2.5 flex flex-col sm:flex-row gap-2">
+                        <ListChecks className="w-4 h-4" />
+                        <span className="text-xs sm:text-sm">Actions</span>
+                    </TabsTrigger>
                 </TabsList>
-                <TabsContent value="ticket" className="space-y-4">
-                    {registrationData.certificateGranted && userData && (
-                      <CertificateCard user={userData} registration={registrationData} />
-                    )}
-                    {registrationStatusContent}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <DashboardProfileCard user={userData} registration={registrationData} />
-                        <RideInfoCard />
-                    </div>
-                </TabsContent>
-                <TabsContent value="community" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Community & Support</CardTitle>
-                            <CardDescription>Connect with other riders and get help.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Button asChild className="w-full bg-green-500 hover:bg-green-600 text-white">
-                                <Link href="https://chat.whatsapp.com/B9glPPTpS1oIZD6fN8AeX4" target="_blank">Join WhatsApp Group</Link>
-                            </Button>
-                             <Button asChild className="w-full" variant="outline">
-                                <Link href="https://wa.me/916363148287" target="_blank">Contact Organizers on WhatsApp</Link>
-                            </Button>
-                            <Button asChild className="w-full" variant="outline">
-                                <Link href="https://www.instagram.com/telefun_" target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                    <QnaSection />
-                </TabsContent>
-                <TabsContent value="actions">
-                    <DashboardActionsCard registration={registrationData} user={userData}/>
-                </TabsContent>
+
+                <div className="mt-6 md:mt-8">
+                    <TabsContent value="ticket" className="space-y-6 md:space-y-8 animate-in fade-in-50 duration-500">
+                        {registrationData.certificateGranted && userData && (
+                            <div className="mb-8">
+                                <CertificateCard user={userData} registration={registrationData} />
+                            </div>
+                        )}
+                        {registrationStatusContent}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+                            <DashboardProfileCard user={userData} registration={registrationData} />
+                            <RideInfoCard />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="community" className="space-y-6 md:space-y-8 animate-in fade-in-50 duration-500">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+                            <Card className="h-full">
+                                <CardHeader>
+                                    <CardTitle>Community & Support</CardTitle>
+                                    <CardDescription>Connect with other riders and get help.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <Button asChild className="w-full bg-green-500 hover:bg-green-600 text-white" size="lg">
+                                        <Link href="https://chat.whatsapp.com/B9glPPTpS1oIZD6fN8AeX4" target="_blank">Join WhatsApp Group</Link>
+                                    </Button>
+                                    <Button asChild className="w-full" variant="outline" size="lg">
+                                        <Link href="https://wa.me/916363148287" target="_blank">Contact Organizers</Link>
+                                    </Button>
+                                    <Button asChild className="w-full" variant="outline" size="lg">
+                                        <Link href="https://www.instagram.com/telefun_" target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                            <div className="h-full">
+                                <QnaSection />
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="actions" className="animate-in fade-in-50 duration-500">
+                        <DashboardActionsCard registration={registrationData} user={userData} />
+                    </TabsContent>
+                </div>
             </Tabs>
         )
     };
-    
+
     if (loading || isLoadingData) {
         return (
             <div className="flex flex-col min-h-screen bg-secondary/50">
                 <Header />
-                 <main className="flex-grow container mx-auto p-4 md:p-8">
+                <main className="flex-grow container mx-auto p-4 md:p-8">
                     <div className="w-full max-w-4xl mx-auto">
                         <DashboardSkeleton />
                     </div>
@@ -265,11 +285,11 @@ export default function DashboardPage() {
             </div>
         );
     }
-    
+
     if (error || fetchError) {
         return (
             <div className="flex min-h-screen items-center justify-center p-4 bg-secondary/50">
-                 <Card className="w-full max-w-md text-center">
+                <Card className="w-full max-w-md text-center">
                     <CardHeader>
                         <CardTitle className="flex items-center justify-center gap-2 text-destructive">
                             <AlertTriangle /> Error
@@ -288,10 +308,10 @@ export default function DashboardPage() {
             <div className="flex flex-col min-h-screen bg-secondary/50">
                 <Header />
                 <main className="flex-grow container mx-auto p-4 md:p-8 flex items-center justify-center">
-                     <Card className="text-center w-full max-w-md">
+                    <Card className="text-center w-full max-w-md">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-2">
-                                <Shield className="text-primary"/> Organizer Account
+                                <Shield className="text-primary" /> Organizer Account
                             </CardTitle>
                             <CardDescription>
                                 Your account has <span className='font-bold'>{userData.role}</span> permissions.
@@ -315,9 +335,9 @@ export default function DashboardPage() {
         <div className="flex flex-col min-h-screen bg-secondary/50">
             <Header />
             <main className="flex-grow container mx-auto p-4 md:p-8">
-                <div className="w-full max-w-4xl mx-auto space-y-4">
+                <div className="w-full max-w-7xl mx-auto space-y-4">
                     <h1 className="text-3xl font-bold font-headline">
-                      Your Dashboard
+                        Your Dashboard
                     </h1>
                     {renderContent()}
                 </div>

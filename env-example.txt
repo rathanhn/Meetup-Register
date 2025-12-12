@@ -1,0 +1,9 @@
+# RENAME THIS FILE TO .env.local AND FILL IN THE KEYS
+
+# Google Places API Key (Required for Map URL API)
+# Get this from your Google Cloud Console
+GOOGLE_PLACES_API_KEY=
+
+# Firebase API Key (Required for Authentication and Firestore)
+# Get this from your Firebase Console
+NEXT_PUBLIC_FIREBASE_API_KEY=

@@ -4,6 +4,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { LocationSettings } from "@/lib/types";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 

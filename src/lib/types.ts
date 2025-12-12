@@ -29,7 +29,7 @@ export interface Offer {
 }
 
 export interface Organizer {
-  id:string;
+  id: string;
   name: string;
   role: string;
   imageUrl: string;
@@ -54,12 +54,12 @@ export interface Perk {
 }
 
 export interface ScheduleEvent {
-    id: string;
-    time: string;
-    title: string;
-    description: string;
-    icon: string;
-    createdAt: any; // Firestore timestamp
+  id: string;
+  time: string;
+  title: string;
+  description: string;
+  icon: string;
+  createdAt: any; // Firestore timestamp
 }
 
 export interface LocationSettings {
@@ -79,65 +79,75 @@ export interface EventSettings {
   heroDescription?: string;
   heroImageUrl?: string;
   heroImageHint?: string;
-  perk1Title?: string;
-  perk1Description?: string;
-  perk2Title?: string;
-  perk2Description?: string;
-  perk3Title?: string;
-  perk3Description?: string;
+  perks?: Perk[]; // New dynamic perks array
+  perk1Title?: string; // Deprecated
+  perk1Description?: string; // Deprecated
+  perk2Title?: string; // Deprecated
+  perk2Description?: string; // Deprecated
+  perk3Title?: string; // Deprecated
+  perk3Description?: string; // Deprecated
+  sponsorTitle?: string;
+  sponsorSubtitle?: string;
+  sponsorLocation?: string;
+  sponsorDescription?: string;
+  sponsorWhatsapp?: string;
+  sponsorInstagram?: string;
+  sponsorImageUrl?: string;
+  developerName?: string;
+  developerLink?: string;
 }
 
 
 export interface Registration {
-    id: string;
-    uid: string;
-    registrationType: 'bike' | 'jeep' | 'car';
-    fullName: string;
-    age: number;
-    phoneNumber: string;
-    whatsappNumber?: string;
-    photoURL?: string;
-    createdAt: any; // Firestore timestamp
-    status: 'pending' | 'approved' | 'rejected' | 'cancellation_requested' | 'cancelled';
-    rider1CheckedIn?: boolean;
-    rider1Finished?: boolean;
-    certificateGranted?: boolean;
-    cancellationReason?: string;
-    statusLastUpdatedAt?: any; // Firestore timestamp
-    statusLastUpdatedBy?: string; // Admin User ID
+  id: string;
+  uid: string;
+  registrationType: 'bike' | 'jeep' | 'car';
+  fullName: string;
+  age: number;
+  phoneNumber: string;
+  whatsappNumber?: string;
+  photoURL?: string;
+  createdAt: any; // Firestore timestamp
+  status: 'pending' | 'approved' | 'rejected' | 'cancellation_requested' | 'cancelled';
+  rider1CheckedIn?: boolean;
+  rider1Finished?: boolean;
+  certificateGranted?: boolean;
+  cancellationReason?: string;
+  statusLastUpdatedAt?: any; // Firestore timestamp
+  statusLastUpdatedBy?: string; // Admin User ID
 }
 
 export interface QnaQuestion {
-    id: string;
-    text: string;
-    userId: string;
-    userName: string;
-    userPhotoURL?: string | null;
-    createdAt: any; // Firestore timestamp
-    isPinned?: boolean;
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string | null;
+  createdAt: any; // Firestore timestamp
+  isPinned?: boolean;
 }
 
 export interface QnaReply {
-    id: string;
-    text: string;
-    userId: string;
-    userName:string;
-    userPhotoURL?: string | null;
-    createdAt: any; // Firestore timestamp
-    isAdmin?: boolean;
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string | null;
+  createdAt: any; // Firestore timestamp
+  isAdmin?: boolean;
 }
 
 export type UserRole = 'superadmin' | 'admin' | 'viewer' | 'user';
 
 export interface AppUser {
-    id: string; // Corresponds to Firebase Auth UID
-    email?: string;
-    displayName?: string;
-    photoURL?: string;
-    role: UserRole;
-    createdAt: any; // Firestore timestamp
-    accessRequest?: {
-        requestedAt: any;
-        status: 'pending_review' | 'approved' | 'rejected';
-    };
+  id: string; // Corresponds to Firebase Auth UID
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  role: UserRole;
+  createdAt: any; // Firestore timestamp
+  accessRequest?: {
+    requestedAt: any;
+    status: 'pending_review' | 'approved' | 'rejected';
+  };
 }

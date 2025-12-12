@@ -21,15 +21,22 @@ service cloud.firestore {
     }
 
     // Rules for collections
+    // Rules for collections
     match /users/{userId} {
-      allow read: if isAuth();
+      // Allow 'get' for everyone. This is necessary because server-side actions (using Client SDK)
+      // are unauthenticated and need to read the 'role' field to verify admin permissions.
+      // We restrict 'list' to prevents harvesting of all user data.
+      // Note: This theoretically allows retrieval of a user's email if their UID is known.
+      allow get: if true;
+      allow list: if isAdmin();
+      
       allow create: if isAuth(); // Allow any authenticated user to create their own user doc
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if false; // Nobody can delete user profiles directly
     }
 
     match /registrations/{registrationId} {
-      allow list: if true;
+      allow list: if isAdmin() || (resource.data.status == 'approved');
       allow get: if isOwner(registrationId) || isAdmin();
       allow create: if isAuth(); // Allow any authenticated user to create their own registration
       allow update: if isOwner(registrationId) || isAdmin();

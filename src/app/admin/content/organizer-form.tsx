@@ -44,12 +44,12 @@ interface OrganizerFormProps {
 }
 
 const fileToDataUri = (file: File) => {
-    return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: OrganizerFormProps) {
@@ -62,21 +62,21 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const isSuperAdmin = userRole === 'superadmin';
 
   useEffect(() => {
     if (isOpen) {
-        if (organizer) {
-            form.reset({
-              ...organizer,
-              imageUrl: organizer.imageUrl || "",
-            });
-            setPhotoPreview(organizer.imageUrl || null);
-        } else {
-            form.reset({ name: "", role: "", imageUrl: "", imageHint: "", contactNumber: "" });
-            setPhotoPreview(null);
-        }
+      if (organizer) {
+        form.reset({
+          ...organizer,
+          imageUrl: organizer.imageUrl || "",
+        });
+        setPhotoPreview(organizer.imageUrl || null);
+      } else {
+        form.reset({ name: "", role: "", imageUrl: "", imageHint: "", contactNumber: "" });
+        setPhotoPreview(null);
+      }
     }
   }, [organizer, form, isOpen]);
 
@@ -90,13 +90,13 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
       try {
         const dataUri = await fileToDataUri(file);
         const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: JSON.stringify({ file: dataUri }),
-            headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          body: JSON.stringify({ file: dataUri }),
+          headers: { 'Content-Type': 'application/json' },
         });
         const { url, error } = await uploadResponse.json();
         if (error || !url) {
-            throw new Error(error || 'Failed to upload photo.');
+          throw new Error(error || 'Failed to upload photo.');
         }
         form.setValue('imageUrl', url, { shouldValidate: true });
         setPhotoPreview(url);
@@ -112,26 +112,28 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
     try {
-        const result = await manageOrganizer({ ...values, adminId: user.uid, organizerId: organizer?.id });
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await manageOrganizer({ ...values, adminId: user.uid, organizerId: organizer?.id, token });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
-  
+
   const handleDelete = async () => {
     if (!user || !organizer) return;
     try {
-        const result = await deleteOrganizer(organizer.id, user.uid);
-         if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await deleteOrganizer(organizer.id, user.uid, token);
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -149,36 +151,36 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
             <FormField name="name" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField name="role" control={form.control} render={({ field }) => (
+            <FormField name="role" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Role</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            
+
             <FormItem>
               <FormLabel>Organizer Photo (Optional)</FormLabel>
               <FormControl>
-                  <div className="flex items-center gap-4">
-                      <Avatar className="w-24 h-24 text-2xl">
-                          <AvatarImage src={photoPreview || undefined} alt={nameValue || "Organizer"} />
-                          <AvatarFallback>
-                            {(nameValue || "O").charAt(0)}
-                          </AvatarFallback>
-                          {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
-                      </Avatar>
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-24 h-24 text-2xl">
+                    <AvatarImage src={photoPreview || undefined} alt={nameValue || "Organizer"} />
+                    <AvatarFallback>
+                      {(nameValue || "O").charAt(0)}
+                    </AvatarFallback>
+                    {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
+                  </Avatar>
 
-                      <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
-                         <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change' : 'Upload'}
-                      </Button>
-                      <Input
-                        type="file"
-                        className="hidden"
-                        ref={photoInputRef}
-                        onChange={handlePhotoChange}
-                        accept="image/png, image/jpeg"
-                        disabled={isUploading}
-                      />
-                  </div>
+                  <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
+                    <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change' : 'Upload'}
+                  </Button>
+                  <Input
+                    type="file"
+                    className="hidden"
+                    ref={photoInputRef}
+                    onChange={handlePhotoChange}
+                    accept="image/png, image/jpeg"
+                    disabled={isUploading}
+                  />
+                </div>
               </FormControl>
-               <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+              <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
             </FormItem>
 
             <FormField name="imageHint" control={form.control} render={({ field }) => (
@@ -193,18 +195,18 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
               <FormItem><FormLabel>Contact Number (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between w-full">
-                {organizer ? (
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this organizer.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                ) : <div />}
+              {organizer ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this organizer.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : <div />}
               <Button type="submit" disabled={isSubmitting || isUploading}>
                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {organizer ? "Save Changes" : "Create Organizer"}
@@ -217,4 +219,3 @@ export function OrganizerForm({ isOpen, setIsOpen, organizer, user, userRole }: 
   );
 }
 
-    

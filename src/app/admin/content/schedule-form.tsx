@@ -34,7 +34,7 @@ const formSchema = z.object({
   icon: z.string().min(1, "Icon is required."),
 });
 
-const icons = ["Users", "Flag", "Coffee", "CheckCircle", "Medal", "Cake", "Map"];
+const icons = ["Users", "Flag", "Coffee", "CheckCircle", "Medal", "Cake", "Map", "Utensils"];
 
 interface ScheduleFormProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
     resolver: zodResolver(formSchema),
     defaultValues: { time: "", title: "", description: "", icon: "Default" },
   });
-  
+
   const isSuperAdmin = userRole === 'superadmin';
 
   useEffect(() => {
@@ -66,26 +66,28 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
     try {
-        const result = await manageSchedule({ ...values, adminId: user.uid, scheduleId: scheduleItem?.id });
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await manageSchedule({ ...values, adminId: user.uid, scheduleId: scheduleItem?.id, token });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
   const handleDelete = async () => {
     if (!user || !scheduleItem) return;
     try {
-        const result = await deleteScheduleItem(scheduleItem.id, user.uid);
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await deleteScheduleItem(scheduleItem.id, user.uid, token);
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -110,24 +112,24 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
             <FormField name="icon" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Icon</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select an icon" /></SelectTrigger></FormControl>
-                    <SelectContent>{icons.map(icon => <SelectItem key={icon} value={icon}>{icon}</SelectItem>)}</SelectContent>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select an icon" /></SelectTrigger></FormControl>
+                  <SelectContent>{icons.map(icon => <SelectItem key={icon} value={icon}>{icon}</SelectItem>)}</SelectContent>
                 </Select>
-              <FormMessage /></FormItem>
+                <FormMessage /></FormItem>
             )} />
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between w-full">
               {scheduleItem ? (
                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this schedule item.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this schedule item.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
                 </AlertDialog>
               ) : <div></div>}
               <Button type="submit" disabled={isSubmitting}>
@@ -142,4 +144,3 @@ export function ScheduleForm({ isOpen, setIsOpen, scheduleItem, user, userRole }
   );
 }
 
-    

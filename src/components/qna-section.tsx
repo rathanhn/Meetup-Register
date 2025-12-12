@@ -27,15 +27,15 @@ const questionFormSchema = z.object({
 });
 
 const QnaItemSkeleton = () => (
-    <div className="p-4 border rounded-lg space-y-4">
-        <div className="flex gap-4">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="w-full space-y-2">
-                 <Skeleton className="h-4 w-1/4" />
-                 <Skeleton className="h-4 w-3/4" />
-            </div>
-        </div>
+  <div className="p-4 border rounded-lg space-y-4">
+    <div className="flex gap-4">
+      <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="w-full space-y-2">
+        <Skeleton className="h-4 w-1/4" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
     </div>
+  </div>
 );
 
 
@@ -47,8 +47,8 @@ export function QnaSection() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setAuthLoading(false);
+      setUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -63,12 +63,12 @@ export function QnaSection() {
 
   useEffect(() => {
     const fetchDisplayName = async () => {
-        if (user) {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists()) {
-                setUserDisplayName(userDoc.data().displayName || "Rider");
-            }
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserDisplayName(userDoc.data().displayName || "Rider");
         }
+      }
     };
     fetchDisplayName();
   }, [user]);
@@ -90,24 +90,34 @@ export function QnaSection() {
       return;
     }
 
-    const result = await addQuestion({
-      ...values,
-      userId: user.uid,
-      userName: userDisplayName,
-      userPhotoURL: user.photoURL,
-    });
-
-    if (result.success) {
-      toast({
-        title: "Success!",
-        description: result.message,
+    try {
+      const token = await user.getIdToken();
+      const result = await addQuestion({
+        ...values,
+        userId: user.uid,
+        userName: userDisplayName,
+        userPhotoURL: user.photoURL,
+        token,
       });
-      form.reset();
-    } else {
+
+      if (result.success) {
+        toast({
+          title: "Success!",
+          description: result.message,
+        });
+        form.reset();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message,
+        });
+      }
+    } catch (e: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: result.message,
+        description: e.message || "An error occurred",
       });
     }
   }
@@ -160,13 +170,13 @@ export function QnaSection() {
         <div className="space-y-4">
           {questionsLoading && (
             <div className="space-y-4">
-                <QnaItemSkeleton />
-                <QnaItemSkeleton />
+              <QnaItemSkeleton />
+              <QnaItemSkeleton />
             </div>
           )}
           {questionsError && <p className="text-destructive">Error loading questions.</p>}
           {questions && questionDocs.length === 0 && (
-             <p className="text-muted-foreground text-center py-4">No questions yet. Be the first to ask!</p>
+            <p className="text-muted-foreground text-center py-4">No questions yet. Be the first to ask!</p>
           )}
           {questionDocs?.map(q => (
             <QnaItem key={q.id} question={q} />
