@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { RegistrationForm } from '@/components/registration-form';
 import { Header } from '@/components/header';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { OrganizerAgreementForm } from '@/components/organizer-agreement-form';
-import { useDocument } from 'react-firebase-hooks/firestore';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { EventSettings } from '@/lib/types';
@@ -16,12 +16,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info, Loader2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/memo';
 
 export default function RegisterPage() {
   const [isOrganizer, setIsOrganizer] = useState(false);
-  const [eventSettings, loading, error] = useDocument(doc(db, 'settings', 'event'));
+  const settingsDocRef = useMemoFirebase(() => doc(db, 'settings', 'event'), []);
+  const { data: eventSettings, loading, error } = useDoc<EventSettings>(settingsDocRef);
 
-  const registrationsOpen = eventSettings?.data()?.registrationsOpen ?? true;
+  const registrationsOpen = eventSettings?.registrationsOpen ?? true;
 
   const renderContent = () => {
     if (loading) {
