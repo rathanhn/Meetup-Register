@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase"; // Using client SDK on server, which is fin
 import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { revalidatePath } from "next/cache";
-import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
@@ -124,16 +124,14 @@ const registrationFormSchema = z
 type RegistrationInput = z.infer<typeof registrationFormSchema>;
 
 export async function createAccountAndRegisterRider(values: RegistrationInput) {
-  console.log("[Action] Starting createAccountAndRegisterRider with values:", values);
+  console.log("[Action] Starting createAccountAndRegisterRider (Admin SDK) with values:", values);
   const parsed = registrationFormSchema.safeParse(values);
   if (!parsed.success) {
     console.error("[Action] Zod validation failed:", parsed.error.flatten());
     return { success: false, message: "Invalid data provided." };
   }
-  console.log("[Action] Zod validation successful.");
 
   const { email, password, confirmPassword, ...registrationData } = parsed.data;
-
   const { rule1, rule2, rule3, rule4, rule5, rule6, rule7, ...coreData } = registrationData;
 
   const dataToSave: any = {
@@ -148,53 +146,126 @@ export async function createAccountAndRegisterRider(values: RegistrationInput) {
       delete dataToSave[key];
     }
   });
-  console.log("[Action] Data prepared for saving:", dataToSave);
-
 
   try {
-    console.log(`[Action] Attempting to create user with email: ${email}`);
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    const uid = user.uid;
-    console.log(`[Action] User created successfully. UID: ${uid}`);
+    console.log(`[Action] Creating user via Admin Auth: ${email}`);
+    // 1. Create User via Admin Auth
+    const userRecord = await adminAuth.createUser({
+      email: email,
+      password: password,
+      displayName: registrationData.fullName,
+      photoURL: registrationData.photoURL || undefined,
+    });
+    const uid = userRecord.uid;
+    console.log(`[Action] User created. UID: ${uid}`);
 
-    console.log(`[Action] Saving user profile to 'users/${uid}'...`);
-    const userRef = doc(db, "users", uid);
-    await setDoc(userRef, {
-      email: user.email,
+    // 2. Write User Profile via Admin DB
+    await adminDb.collection("users").doc(uid).set({
+      email: userRecord.email,
       displayName: registrationData.fullName,
       role: 'user',
       photoURL: registrationData.photoURL || null,
-      createdAt: serverTimestamp(),
+      createdAt: new Date(),
     });
-    console.log("[Action] User profile saved successfully.");
 
-    const registrationRef = doc(db, "registrations", uid);
-    const finalRegistrationData = { ...dataToSave, uid, createdAt: serverTimestamp() };
-    console.log(`[Action] Saving registration data to 'registrations/${uid}'...`, finalRegistrationData);
-    await setDoc(registrationRef, finalRegistrationData);
-    console.log("[Action] Registration data saved successfully.");
+    // 3. Write Registration Data via Admin DB
+    const finalRegistrationData = { ...dataToSave, uid, createdAt: new Date() };
+    await adminDb.collection("registrations").doc(uid).set(finalRegistrationData);
 
     revalidatePath('/dashboard');
-    console.log("[Action] Revalidated dashboard path. Returning success.");
     return { success: true, message: "Registration successful! Your application is pending review.", uid: uid };
 
   } catch (error: any) {
-    console.error("[Action] An error occurred in the registration process:", error);
+    console.error("[Action] Registration process error:", error);
 
     if (error.code === 'auth/email-already-in-use') {
-      console.log("[Action] Email is already in use. Handling as existing user.");
       return {
-        success: true,
-        message: "Account already exists. We've linked this registration to your account. Logging you in...",
-        uid: null,
-        existingUser: true,
-        dataForExistingUser: dataToSave
+        success: false,
+        message: "Email is already in use. Please log in or use a different email.",
+        errorType: 'EMAIL_EXISTS', // Flag for client to handle if needed
       };
     }
 
-    console.error("Error creating account and registration:", error);
-    return { success: false, message: error.message || "Could not create your account or registration. Please try again." };
+    return { success: false, message: error.message || "Could not create your account. Please try again." };
+  }
+}
+
+// Schema for authenticated users (no password/email needed)
+const authenticatedRegistrationSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters."),
+  age: z.coerce.number().min(18, "You must be at least 18 years old.").max(100),
+  phoneNumber: z.string().regex(phoneRegex, "Invalid phone number."),
+  whatsappNumber: z.string().optional(),
+  photoURL: z.string().url().optional(),
+  registrationType: z.enum(["bike", "jeep", "car"]),
+
+  // Individual rule consents (must still agree)
+  rule1: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule2: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule3: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule4: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule5: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule6: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+  rule7: z.boolean().refine(val => val, { message: "You must agree to this rule." }),
+});
+
+export async function registerAuthenticatedUser(values: z.infer<typeof authenticatedRegistrationSchema> & { uid: string, token: string }) {
+  console.log("[Action] Starting registerAuthenticatedUser", values);
+  const { uid, token, ...data } = values;
+
+  // 1. Verify Token
+  if (!token) {
+    return { success: false, message: "Authentication required." };
+  }
+
+  let verifiedUid: string;
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    verifiedUid = decodedToken.uid;
+
+    // Ensure the token belongs to the user claiming it (extra safety)
+    if (verifiedUid !== uid) {
+      return { success: false, message: "Authentication mismatch." };
+    }
+  } catch (e) {
+    console.error("Token verification failed", e);
+    return { success: false, message: "Invalid session. Please login again." };
+  }
+
+  const parsed = authenticatedRegistrationSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, message: "Invalid data." };
+  }
+
+  const { rule1, rule2, rule3, rule4, rule5, rule6, rule7, ...coreData } = parsed.data;
+
+  // Use new Date() for Admin SDK
+  const dataToSave = {
+    ...coreData,
+    status: "pending" as const,
+    consent: true,
+    uid: verifiedUid,
+    createdAt: new Date(),
+  };
+
+  // Remove undefined
+  Object.keys(dataToSave).forEach(key => dataToSave[key as keyof typeof dataToSave] === undefined && delete dataToSave[key as keyof typeof dataToSave]);
+
+  try {
+    // 1. Update User Profile if changed - Use Admin SDK
+    await adminDb.collection("users").doc(verifiedUid).set({
+      displayName: coreData.fullName,
+      photoURL: coreData.photoURL || null,
+    }, { merge: true });
+
+    // 2. Create Registration Doc - Use Admin SDK
+    await adminDb.collection("registrations").doc(verifiedUid).set(dataToSave);
+
+    revalidatePath('/dashboard');
+    return { success: true, message: "Registration submitted successfully!" };
+  } catch (e: any) {
+    console.error("Registration failed", e);
+    return { success: false, message: "Failed to submit registration: " + e.message };
   }
 }
 
@@ -214,13 +285,16 @@ type EditRegistrationInput = z.infer<typeof editRegistrationFormSchema> & {
   adminId: string;
 };
 
-export async function updateRegistrationDetails(values: EditRegistrationInput) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+export async function updateRegistrationDetails(values: EditRegistrationInput & { token?: string }) {
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const { registrationId, adminId, ...dataToUpdate } = values;
+  const { registrationId, adminId, token, ...dataToUpdate } = values;
   const parsed = editRegistrationFormSchema.safeParse(dataToUpdate);
 
   if (!parsed.success) {
@@ -228,21 +302,15 @@ export async function updateRegistrationDetails(values: EditRegistrationInput) {
     return { success: false, message: "Invalid data provided." };
   }
 
-  const registrationRef = doc(db, "registrations", registrationId);
-
-  updateDoc(registrationRef, parsed.data).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: parsed.data
-    })
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  revalidatePath('/admin');
-  revalidatePath(`/ticket/${registrationId}`);
-  return { success: true, message: "Rider details updated successfully." };
+  try {
+    await adminDb.collection("registrations").doc(registrationId).update(parsed.data);
+    revalidatePath('/admin');
+    revalidatePath(`/ticket/${registrationId}`);
+    return { success: true, message: "Rider details updated successfully." };
+  } catch (e: any) {
+    console.error("Update registration failed", e);
+    return { success: false, message: "Failed to update details: " + e.message };
+  }
 }
 
 // Schema for updating a registration status
@@ -250,71 +318,63 @@ const updateStatusSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   status: z.enum(["approved", "rejected", "pending", "cancellation_requested", "cancelled"]),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function updateRegistrationStatus(values: z.infer<typeof updateStatusSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
   const parsed = updateStatusSchema.safeParse(values);
-
   if (!parsed.success) {
     return { success: false, message: "Invalid data provided." };
   }
 
   const { registrationId, status, adminId } = parsed.data;
-  const registrationRef = doc(db, "registrations", registrationId);
   const dataToUpdate = {
     status,
-    statusLastUpdatedAt: serverTimestamp(),
+    statusLastUpdatedAt: new Date(),
     statusLastUpdatedBy: adminId,
   };
 
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Registration status updated to ${status}.` };
+  try {
+    await adminDb.collection("registrations").doc(registrationId).update(dataToUpdate);
+    return { success: true, message: `Registration status updated to ${status}.` };
+  } catch (e: any) {
+    console.error("Update status failed", e);
+    return { success: false, message: "Failed to update status." };
+  }
 }
 
 // Schema for deleting a registration
 const deleteRegistrationSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function deleteRegistration(values: z.infer<typeof deleteRegistrationSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const parsed = deleteRegistrationSchema.safeParse(values);
-  if (!parsed.success) {
-    return { success: false, message: "Invalid data provided." };
-  }
-
-  const { registrationId } = parsed.data;
+  const { registrationId } = values;
 
   try {
-    await deleteDoc(doc(db, "registrations", registrationId));
-    await deleteDoc(doc(db, "users", registrationId));
+    await adminDb.collection("registrations").doc(registrationId).delete();
+    await adminDb.collection("users").doc(registrationId).delete();
     return { success: true, message: "Registration and user data have been deleted." };
   } catch (error: any) {
-    const registrationRef = doc(db, "registrations", registrationId);
-    const permError = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "delete",
-    });
-    errorEmitter.emit('permission-error', permError);
+    console.error("Delete registration failed", error);
     return { success: false, message: "Failed to delete registration data." };
   }
 }
@@ -324,132 +384,98 @@ export async function deleteRegistration(values: z.infer<typeof deleteRegistrati
 const checkInSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function checkInRider(values: z.infer<typeof checkInSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const parsed = checkInSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return { success: false, message: "Invalid data provided for check-in." };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ rider1CheckedIn: true });
+    return { success: true, message: `Rider checked in successfully.` };
+  } catch (e: any) {
+    console.error("Check-in failed", e);
+    return { success: false, message: "Check-in failed: " + e.message };
   }
-
-  const { registrationId } = parsed.data;
-  const registrationRef = doc(db, "registrations", registrationId);
-  const dataToUpdate = { rider1CheckedIn: true };
-
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    })
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Rider checked in successfully.` };
 }
 
 // Schema for marking a rider as finished
 const finishRiderSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function finishRider(values: z.infer<typeof finishRiderSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const parsed = finishRiderSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return { success: false, message: "Invalid data provided for finishing." };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ rider1Finished: true });
+    return { success: true, message: `Rider marked as finished!` };
+  } catch (e: any) {
+    console.error("Finish failed", e);
+    return { success: false, message: "Finish update failed: " + e.message };
   }
-
-  const { registrationId } = parsed.data;
-  const registrationRef = doc(db, "registrations", registrationId);
-  const dataToUpdate = { rider1Finished: true };
-
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Rider marked as finished!` };
 }
 
 // Schema for reverting a rider's check-in
 const revertCheckInSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function revertCheckIn(values: z.infer<typeof revertCheckInSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
-  const parsed = revertCheckInSchema.safeParse(values);
-  if (!parsed.success) return { success: false, message: "Invalid data for check-in reversal." };
 
-  const { registrationId } = parsed.data;
-  const registrationRef = doc(db, "registrations", registrationId);
-  const dataToUpdate = { rider1CheckedIn: false };
-
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Rider check-in has been reverted.` };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ rider1CheckedIn: false });
+    return { success: true, message: `Rider check-in has been reverted.` };
+  } catch (e: any) {
+    return { success: false, message: "Revert failed: " + e.message };
+  }
 }
 
 // Schema for reverting a rider's finish status
 const revertFinishSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function revertFinish(values: z.infer<typeof revertFinishSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
-  const parsed = revertFinishSchema.safeParse(values);
-  if (!parsed.success) return { success: false, message: "Invalid data for finish reversal." };
 
-  const { registrationId } = parsed.data;
-  const registrationRef = doc(db, "registrations", registrationId);
-  const dataToUpdate = { rider1Finished: false };
-
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: registrationRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Rider finish status has been reverted.` };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ rider1Finished: false });
+    return { success: true, message: `Rider finish status has been reverted.` };
+  } catch (e: any) {
+    return { success: false, message: "Revert failed: " + e.message };
+  }
 }
 
 // Schema for adding a question
@@ -567,110 +593,7 @@ export async function addReply(values: z.infer<typeof addReplySchema>) {
   }
 }
 
-// Schema for updating a user's role
-const updateUserRoleSchema = z.object({
-  adminId: z.string().min(1, "Performing user ID is required."),
-  targetUserId: z.string().min(1, "Target user ID is required."),
-  newRole: z.enum(['superadmin', 'admin', 'viewer', 'user']),
-});
 
-export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema>) {
-  const isSuperAdmin = await checkSuperAdminPermissions(values.adminId);
-  const adminDoc = await getDoc(doc(db, 'users', values.adminId));
-  const adminRole = adminDoc.data()?.role;
-
-  // Only superadmins can assign the superadmin role.
-  if (!isSuperAdmin && values.newRole === 'superadmin') {
-    return { success: false, message: "Only superadmins can assign the superadmin role." };
-  }
-  // Only superadmins or admins can change roles.
-  if (adminRole !== 'superadmin' && adminRole !== 'admin') {
-    return { success: false, message: "Permission denied." };
-  }
-
-  const parsed = updateUserRoleSchema.safeParse(values);
-  if (!parsed.success) {
-    return { success: false, message: "Invalid data." };
-  }
-
-  const { targetUserId, newRole } = parsed.data;
-
-  // Superadmins can't change their own role.
-  if (values.adminId === targetUserId && newRole !== adminRole && adminRole === 'superadmin') {
-    return { success: false, message: "Superadmins cannot change their own role." };
-  }
-  // Admins can't change their own role.
-  if (values.adminId === targetUserId && newRole !== adminRole && adminRole === 'admin') {
-    return { success: false, message: "Admins cannot change their own role." };
-  }
-
-  const userRef = doc(db, "users", targetUserId);
-  const dataToUpdate = { role: newRole };
-
-  updateDoc(userRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: userRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `User role updated to ${newRole}.` };
-}
-
-// Schema for QnA moderation
-const qnaModSchema = z.object({
-  adminId: z.string().min(1, "Admin ID is required."),
-  questionId: z.string().min(1, "Question ID is required."),
-});
-
-// Action to delete a question
-export async function deleteQuestion(values: z.infer<typeof qnaModSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
-  }
-
-  const questionRef = doc(db, "qna", values.questionId);
-
-  deleteDoc(questionRef).catch((e: any) => {
-    const error = new FirestorePermissionError({ path: questionRef.path, operation: "delete" });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: "Question deleted." };
-}
-
-// Action to toggle pin status of a question
-export async function togglePinQuestion(values: z.infer<typeof qnaModSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
-  }
-
-  const questionRef = doc(db, "qna", values.questionId);
-  const questionSnap = await getDoc(questionRef);
-  if (!questionSnap.exists()) {
-    return { success: false, message: "Question not found." };
-  }
-  const currentPinStatus = questionSnap.data()?.isPinned || false;
-  const dataToUpdate = { isPinned: !currentPinStatus };
-
-  updateDoc(questionRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: questionRef.path,
-      operation: "update",
-      requestResourceData: dataToUpdate
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: `Question ${!currentPinStatus ? 'pinned' : 'unpinned'}.` };
-}
 
 
 // Schema for requesting organizer access
@@ -795,64 +718,71 @@ const addAnnouncementSchema = z.object({
   message: z.string().min(5, "Announcement must be at least 5 characters.").max(280, "Announcement cannot be longer than 280 characters."),
   adminId: z.string().min(1, "Admin ID is required."),
   adminName: z.string().min(1, "Admin name is required."),
+  token: z.string().optional(),
 });
 
 export async function addAnnouncement(values: z.infer<typeof addAnnouncementSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    // Fallback for older calls (though we should migrate all)
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
+
   const parsed = addAnnouncementSchema.safeParse(values);
   if (!parsed.success) {
     return { success: false, message: "Invalid data provided." };
   }
 
-  const userDocSnap = await getDoc(doc(db, "users", values.adminId));
-  const userData = userDocSnap.data();
-  const announcementCollectionRef = collection(db, "announcements");
-  const dataToAdd = {
-    ...parsed.data,
-    adminName: userData?.displayName || values.adminName,
-    adminRole: userData?.role || 'admin',
-    createdAt: serverTimestamp(),
-  };
+  const { token, ...data } = parsed.data;
 
-  addDoc(announcementCollectionRef, dataToAdd).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: announcementCollectionRef.path,
-      operation: "create",
-      requestResourceData: dataToAdd
+  try {
+    const userDoc = await adminDb.collection("users").doc(data.adminId).get();
+    const userData = userDoc.data();
+    const adminName = userData?.displayName || data.adminName;
+    const adminRole = userData?.role || 'admin';
+
+    await adminDb.collection("announcements").add({
+      message: data.message,
+      adminId: data.adminId,
+      adminName,
+      adminRole,
+      createdAt: new Date(),
     });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
 
-  return { success: true, message: "Announcement posted successfully!" };
+    revalidatePath('/');
+    return { success: true, message: "Announcement posted successfully!" };
+  } catch (e: any) {
+    console.error("Add announcement failed", e);
+    return { success: false, message: "Failed to post announcement: " + e.message };
+  }
 }
 
 const deleteAnnouncementSchema = z.object({
   announcementId: z.string().min(1, "Announcement ID is required."),
   adminId: z.string().min(1, "Admin ID is required."),
+  token: z.string().optional(),
 });
 
 export async function deleteAnnouncement(values: z.infer<typeof deleteAnnouncementSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const announcementRef = doc(db, "announcements", values.announcementId);
-
-  deleteDoc(announcementRef).catch((e: any) => {
-    const error = new FirestorePermissionError({
-      path: announcementRef.path,
-      operation: "delete"
-    });
-    errorEmitter.emit('permission-error', error);
-    return { success: false, message: e.message };
-  });
-
-  return { success: true, message: "Announcement deleted." };
+  try {
+    await adminDb.collection("announcements").doc(values.announcementId).delete();
+    revalidatePath('/');
+    return { success: true, message: "Announcement deleted." };
+  } catch (e: any) {
+    console.error("Delete announcement failed", e);
+    return { success: false, message: "Failed to delete: " + e.message };
+  }
 }
 
 // Schema for ride cancellation
@@ -1307,7 +1237,8 @@ export async function manageEventTime(values: z.infer<typeof eventTimeSchema> & 
   if (!parsed.success) throw new Error("Invalid data.");
 
   // Use Timestamp.fromDate for Firestore
-  const dataToUpdate = { startTime: Timestamp.fromDate(parsed.data.eventDate) };
+  // Use Date object directly for Firestore compatibility
+  const dataToUpdate = { startTime: parsed.data.eventDate };
 
   try {
     await adminDb.collection("settings").doc("event").set(dataToUpdate, { merge: true });
@@ -1327,7 +1258,20 @@ export async function manageEventTime(values: z.infer<typeof eventTimeSchema> & 
 }
 
 const generalSettingsSchema = z.object({
-  registrationsOpen: z.boolean(),
+  registrationsOpen: z.boolean().optional(),
+
+  // Certificate
+  certificateTitle: z.string().optional(),
+  certificateSubtitle: z.string().optional(),
+  certificateLogoUrl: z.string().optional(),
+  certificateSignatoryName: z.string().optional(),
+  certificateSignatoryRole: z.string().optional(),
+
+  // Ticket
+  ticketTitle: z.string().optional(),
+  ticketSubtitle: z.string().optional(),
+  ticketLogoUrl: z.string().optional(),
+  originShort: z.string().optional(),
 });
 
 export async function manageGeneralSettings(values: z.infer<typeof generalSettingsSchema> & { adminId: string, token?: string }) {
@@ -1343,8 +1287,12 @@ export async function manageGeneralSettings(values: z.infer<typeof generalSettin
   const parsed = generalSettingsSchema.safeParse(data);
   if (!parsed.success) throw new Error("Invalid data provided.");
 
+  const dataToSave = { ...parsed.data };
+  // Remove undefined keys so we don't nullify existing settings
+  Object.keys(dataToSave).forEach(key => dataToSave[key as keyof typeof dataToSave] === undefined && delete dataToSave[key as keyof typeof dataToSave]);
+
   try {
-    await adminDb.collection("settings").doc("event").set(parsed.data, { merge: true });
+    await adminDb.collection("settings").doc("event").set(dataToSave, { merge: true });
     revalidatePath('/');
     revalidatePath('/register');
     return { success: true, message: "Settings updated." };
@@ -1449,42 +1397,47 @@ export async function deleteLocationPartner(id: string, adminId: string, token?:
 const certificateSchema = z.object({
   registrationId: z.string().min(1),
   adminId: z.string().min(1),
+  token: z.string().optional(),
 });
 
 export async function grantCertificate(values: z.infer<typeof certificateSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const registrationRef = doc(db, "registrations", values.registrationId);
-  const dataToUpdate = { certificateGranted: true };
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({ path: registrationRef.path, operation: "update", requestResourceData: dataToUpdate });
-    errorEmitter.emit('permission-error', error);
-  });
-
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  return { success: true, message: "Certificate granted to rider." };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ certificateGranted: true });
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    return { success: true, message: "Certificate granted to rider." };
+  } catch (e: any) {
+    console.error("Grant certificate failed", e);
+    return { success: false, message: "Failed to grant: " + e.message };
+  }
 }
 
 export async function revokeCertificate(values: z.infer<typeof certificateSchema>) {
-  const isAdmin = await checkAdminPermissions(values.adminId);
-  if (!isAdmin) {
-    return { success: false, message: "Permission denied." };
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
   }
 
-  const registrationRef = doc(db, "registrations", values.registrationId);
-  const dataToUpdate = { certificateGranted: false };
-  updateDoc(registrationRef, dataToUpdate).catch((e: any) => {
-    const error = new FirestorePermissionError({ path: registrationRef.path, operation: "update", requestResourceData: dataToUpdate });
-    errorEmitter.emit('permission-error', error);
-  });
-
-  revalidatePath('/admin');
-  revalidatePath('/dashboard');
-  return { success: true, message: "Certificate revoked." };
+  try {
+    await adminDb.collection("registrations").doc(values.registrationId).update({ certificateGranted: false });
+    revalidatePath('/admin');
+    revalidatePath('/dashboard');
+    return { success: true, message: "Certificate revoked." };
+  } catch (e: any) {
+    console.error("Revoke certificate failed", e);
+    return { success: false, message: "Failed to revoke: " + e.message };
+  }
 }
 
 
@@ -1551,6 +1504,111 @@ export async function manageHomepageContent(values: z.infer<typeof homepageConte
   }
 }
 
+// Schema for updating a user's role
+const updateUserRoleSchema = z.object({
+  adminId: z.string().min(1, "Performing user ID is required."),
+  targetUserId: z.string().min(1, "Target user ID is required."),
+  newRole: z.enum(['superadmin', 'admin', 'viewer', 'user']),
+  token: z.string().optional(),
+});
+
+export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema>) {
+  let isSuperAdmin = false;
+  let adminRole = '';
+
+  if (values.token) {
+    const decoded = await adminAuth.verifyIdToken(values.token);
+    const adminUser = await adminDb.collection("users").doc(decoded.uid).get();
+    adminRole = adminUser.data()?.role;
+    isSuperAdmin = adminRole === 'superadmin';
+    if (adminRole !== 'admin' && adminRole !== 'superadmin') throw new Error("Permission denied.");
+  } else {
+    isSuperAdmin = await checkSuperAdminPermissions(values.adminId);
+    const adminDoc = await getDoc(doc(db, 'users', values.adminId));
+    adminRole = adminDoc.data()?.role;
+    if (adminRole !== 'admin' && adminRole !== 'superadmin') return { success: false, message: "Permission denied." };
+  }
+
+  // Only superadmins can assign the superadmin role.
+  if (!isSuperAdmin && values.newRole === 'superadmin') {
+    return { success: false, message: "Only superadmins can assign the superadmin role." };
+  }
+
+  const { targetUserId, newRole } = values;
+
+  // Superadmins can't change their own role.
+  if (values.adminId === targetUserId && newRole !== adminRole && adminRole === 'superadmin') {
+    return { success: false, message: "Superadmins cannot change their own role." };
+  }
+  // Admins can't change their own role.
+  if (values.adminId === targetUserId && newRole !== adminRole && adminRole === 'admin') {
+    return { success: false, message: "Admins cannot change their own role." };
+  }
+
+  try {
+    await adminDb.collection("users").doc(targetUserId).update({ role: newRole });
+    return { success: true, message: `User role updated to ${newRole}.` };
+  } catch (e: any) {
+    console.error("Update role failed", e);
+    return { success: false, message: "Failed to update role: " + e.message };
+  }
+}
+
+// Schema for QnA moderation
+const qnaModSchema = z.object({
+  adminId: z.string().min(1, "Admin ID is required."),
+  questionId: z.string().min(1, "Question ID is required."),
+  token: z.string().optional(),
+});
+
+// Action to delete a question
+export async function deleteQuestion(values: z.infer<typeof qnaModSchema>) {
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
+  }
+
+  try {
+    const questionRef = adminDb.collection("qna").doc(values.questionId);
+    await questionRef.delete();
+    return { success: true, message: "Question deleted." };
+  } catch (e: any) {
+    console.error("Delete question failed", e);
+    return { success: false, message: "Failed: " + e.message };
+  }
+}
+
+// Action to toggle pin status of a question
+export async function togglePinQuestion(values: z.infer<typeof qnaModSchema>) {
+  if (values.token) {
+    const isAdmin = await checkAdminToken(values.token);
+    if (!isAdmin) throw new Error("Permission denied (Invalid Token).");
+  } else {
+    const isAdmin = await checkAdminPermissions(values.adminId);
+    if (!isAdmin) return { success: false, message: "Permission denied." };
+  }
+
+  try {
+    const questionRef = adminDb.collection("qna").doc(values.questionId);
+    const questionSnap = await questionRef.get();
+
+    if (!questionSnap.exists) {
+      return { success: false, message: "Question not found." };
+    }
+
+    const currentPinStatus = questionSnap.data()?.isPinned || false;
+    await questionRef.update({ isPinned: !currentPinStatus });
+
+    return { success: true, message: `Question ${!currentPinStatus ? 'pinned' : 'unpinned'}.` };
+  } catch (e: any) {
+    console.error("Toggle pin failed", e);
+    return { success: false, message: "Failed: " + e.message };
+  }
+}
+
 const homepageVisibilitySchema = z.object({
   showSchedule: z.boolean(),
   showReviews: z.boolean(),
@@ -1592,7 +1650,3 @@ export async function manageHomepageVisibility(values: z.infer<typeof homepageVi
     }
   }
 }
-
-
-
-

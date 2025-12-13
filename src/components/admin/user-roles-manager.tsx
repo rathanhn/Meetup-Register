@@ -30,14 +30,14 @@ import { Skeleton } from '../ui/skeleton';
 import { useMemoFirebase } from '@/firebase/memo';
 
 const TableSkeleton = () => (
-    [...Array(3)].map((_, i) => (
-        <TableRow key={i}>
-            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-            <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-            <TableCell className="text-right"><Skeleton className="h-9 w-32 ml-auto" /></TableCell>
-        </TableRow>
-    ))
+  [...Array(3)].map((_, i) => (
+    <TableRow key={i}>
+      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+      <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+      <TableCell className="text-right"><Skeleton className="h-9 w-32 ml-auto" /></TableCell>
+    </TableRow>
+  ))
 );
 
 export function UserRolesManager() {
@@ -50,12 +50,12 @@ export function UserRolesManager() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setLoggedInUser(user);
-        setAuthLoading(false);
+      setLoggedInUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
-  
+
   const adminUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('role', 'in', ['superadmin', 'admin', 'viewer'])), []);
   const { data: adminUsers, loading: adminUsersLoading, error: adminUsersError } = useCollection<AppUser>(adminUsersQuery);
 
@@ -78,15 +78,15 @@ export function UserRolesManager() {
 
   const allUsers = useMemo(() => {
     const usersMap = new Map<string, AppUser>();
-    
+
     adminUsers?.forEach(user => {
-        usersMap.set(user.id, user);
+      usersMap.set(user.id, user);
     });
 
     requestingUsers?.forEach(user => {
-        if (!usersMap.has(user.id)) {
-            usersMap.set(user.id, user);
-        }
+      if (!usersMap.has(user.id)) {
+        usersMap.set(user.id, user);
+      }
     });
 
     return Array.from(usersMap.values());
@@ -97,16 +97,22 @@ export function UserRolesManager() {
     if (!loggedInUser) return;
     setIsUpdating(targetUserId);
 
-    const result = await updateUserRole({
-      adminId: loggedInUser.uid,
-      targetUserId,
-      newRole,
-    });
+    try {
+      const token = await loggedInUser.getIdToken();
+      const result = await updateUserRole({
+        adminId: loggedInUser.uid,
+        targetUserId,
+        newRole,
+        token,
+      });
 
-    if (result.success) {
-      toast({ title: "Success", description: result.message });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: result.message });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
     setIsUpdating(null);
   };
@@ -155,20 +161,20 @@ export function UserRolesManager() {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
-                    <Badge 
-                      variant={user.role === 'superadmin' ? 'default' : user.role === 'admin' ? 'secondary' : 'outline'} 
+                    <Badge
+                      variant={user.role === 'superadmin' ? 'default' : user.role === 'admin' ? 'secondary' : 'outline'}
                       className="capitalize"
                     >
                       {user.role}
                     </Badge>
-                     {user.accessRequest?.status === 'pending_review' && (
-                        <Badge variant="destructive">Requested</Badge>
+                    {user.accessRequest?.status === 'pending_review' && (
+                      <Badge variant="destructive">Requested</Badge>
                     )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
                   {isUpdating === user.id ? (
-                     <Loader2 className="h-5 w-5 animate-spin ml-auto" />
+                    <Loader2 className="h-5 w-5 animate-spin ml-auto" />
                   ) : (
                     <Select
                       defaultValue={user.role}

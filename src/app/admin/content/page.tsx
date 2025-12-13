@@ -28,25 +28,27 @@ export default function ContentManagement() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().role as UserRole);
+          }
+        } catch (e) {
+          console.error("Failed to fetch role", e);
+        }
+      } else {
+        setUserRole(null);
+      }
+
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      const fetchUserRole = async () => {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUserRole(userDoc.data().role as UserRole);
-        }
-      };
-      fetchUserRole();
-    }
-  }, [user]);
 
   const canManageContent = userRole === 'superadmin' || userRole === 'admin';
 

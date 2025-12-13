@@ -95,6 +95,19 @@ export interface EventSettings {
   sponsorImageUrl?: string;
   developerName?: string;
   developerLink?: string;
+
+  // Certificate Settings
+  certificateTitle?: string;
+  certificateSubtitle?: string;
+  certificateLogoUrl?: string;
+  certificateSignatoryName?: string;
+  certificateSignatoryRole?: string;
+
+  // Ticket Settings
+  ticketTitle?: string;
+  ticketSubtitle?: string;
+  ticketLogoUrl?: string;
+  originShort?: string; // Location on ticket
 }
 
 

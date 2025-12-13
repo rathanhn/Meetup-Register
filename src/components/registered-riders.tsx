@@ -28,7 +28,7 @@ const RiderSkeleton = () => (
     <div className="p-1">
       <Card>
         <CardContent className="flex flex-col items-center justify-center p-6 gap-2 aspect-square">
-          <Skeleton className="w-20 h-20 rounded-full" />
+          <Skeleton className="w-24 h-24 sm:w-32 sm:h-32 rounded-full" />
           <Skeleton className="h-5 w-3/4" />
         </CardContent>
       </Card>
@@ -95,10 +95,10 @@ export function RegisteredRiders() {
                 <CarouselItem key={rider.id} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center p-2 sm:p-4 gap-2 aspect-square">
-                      <Avatar className="w-16 h-16 sm:w-20 sm:h-20 border-4 border-primary/50">
+                      <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-primary/50">
                         <AvatarImage src={rider.photo} alt={rider.name} />
                         <AvatarFallback>
-                          <User className="w-8 h-8 sm:w-10 sm:h-10" />
+                          <User className="w-12 h-12 sm:w-16 sm:h-16" />
                         </AvatarFallback>
                       </Avatar>
                       <p className="text-xs sm:text-sm font-semibold text-center truncate w-full px-1">{rider.name}</p>

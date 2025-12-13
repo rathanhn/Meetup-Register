@@ -20,11 +20,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
 import { Loader2, PartyPopper, User, Upload, Bike, Tractor, Car } from "lucide-react";
-import { createAccountAndRegisterRider } from "@/app/actions";
+import { registerAuthenticatedUser, createAccountAndRegisterRider } from "@/app/actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "./ui/separator";
 import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, setDoc, getDoc } from "firebase/firestore";
@@ -35,13 +35,13 @@ const phoneRegex = new RegExp(
 );
 
 const rideRules = [
-    { id: 'rule1', text: "A helmet is compulsory for all riders." },
-    { id: 'rule2', text: "Obey all traffic laws and signals." },
-    { id: 'rule3', text: "Maintain a safe distance from other riders." },
-    { id: 'rule4', text: "No racing or dangerous stunts are allowed." },
-    { id: 'rule5', text: "Follow instructions from event organizers at all times." },
-    { id: 'rule6', text: "Ensure your vehicle is in good working condition." },
-    { id: 'rule7', text: "Riders are recommended to wear necessary gear like a jacket, shoes, and suitable pants." }
+  { id: 'rule1', text: "A helmet is compulsory for all riders." },
+  { id: 'rule2', text: "Obey all traffic laws and signals." },
+  { id: 'rule3', text: "Maintain a safe distance from other riders." },
+  { id: 'rule4', text: "No racing or dangerous stunts are allowed." },
+  { id: 'rule5', text: "Follow instructions from event organizers at all times." },
+  { id: 'rule6', text: "Ensure your vehicle is in good working condition." },
+  { id: 'rule7', text: "Riders are recommended to wear necessary gear like a jacket, shoes, and suitable pants." }
 ];
 
 const formSchema = z
@@ -49,7 +49,7 @@ const formSchema = z
     email: z.string().email("A valid email is required."),
     password: z.string().min(6, "Password must be at least 6 characters."),
     confirmPassword: z.string().min(6, "Password must be at least 6 characters."),
-    
+
     registrationType: z.enum(["bike", "jeep", "car"], {
       required_error: "You need to select a vehicle type.",
     }),
@@ -81,34 +81,36 @@ const formSchema = z
 
 // Helper to convert file to Base64 Data URI
 const fileToDataUri = (file: File) => {
-    return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 const GoogleIcon = () => (
-    <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
-        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
-        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path>
-        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path>
-        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.082 5.571l6.19 5.238C42.021 35.591 44 30.134 44 24c0-1.341-.138-2.65-.389-3.917z"></path>
-    </svg>
+  <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
+    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path>
+    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path>
+    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path>
+    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.16-4.082 5.571l6.19 5.238C42.021 35.591 44 30.134 44 24c0-1.341-.138-2.65-.389-3.917z"></path>
+  </svg>
 )
 
 export function RegistrationForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [sameAsPhone, setSameAsPhone] = useState(false);
-  
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: "onChange",
@@ -131,6 +133,27 @@ export function RegistrationForm() {
     },
   });
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsAuthChecking(false);
+      if (user) {
+        setCurrentUser(user);
+        // Pre-fill form
+        form.setValue('email', user.email || '');
+        form.setValue('fullName', user.displayName || '');
+        // Set dummy password to satisfy zod
+        form.setValue('password', 'authenticated-user');
+        form.setValue('confirmPassword', 'authenticated-user');
+
+        if (user.photoURL) {
+          setPhotoPreview(user.photoURL);
+          form.setValue('photoURL', user.photoURL);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [form]);
+
   const { formState, watch } = form;
   const phoneNumber = watch("phoneNumber");
   const password = watch("password");
@@ -138,7 +161,7 @@ export function RegistrationForm() {
 
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
   const passwordsDoNotMatch = password && confirmPassword && password !== confirmPassword;
-  
+
   const isFormProcessing = formState.isSubmitting || isProcessing || isGoogleLoading;
 
   useEffect(() => {
@@ -150,46 +173,34 @@ export function RegistrationForm() {
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-        setPhotoPreview(URL.createObjectURL(file));
-        form.setValue('photoURL', file, { shouldValidate: true });
+      setPhotoPreview(URL.createObjectURL(file));
+      form.setValue('photoURL', file, { shouldValidate: true });
     }
   };
-  
+
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        form.reset({
-            ...form.getValues(),
-            email: user.email || '',
-            fullName: user.displayName || '',
-            password: 'temp-password-from-google',
-            confirmPassword: 'temp-password-from-google',
-        });
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-        if (user.photoURL) {
-            setPhotoPreview(user.photoURL);
-            form.setValue('photoURL', user.photoURL, { shouldValidate: true });
-        }
-
-        toast({
-            title: "Google Account Linked!",
-            description: "Please fill in the rest of your registration details.",
-        });
+      // This will trigger the auth state listener above to fill the form
+      toast({
+        title: "Google Account Linked!",
+        description: "Please fill in the rest of your registration details.",
+      });
 
     } catch (e: any) {
-        if (e.code !== 'auth/popup-closed-by-user') {
-            toast({
-                variant: "destructive",
-                title: "Google Sign-In Failed",
-                description: e.message?.replace('Firebase: ', ''),
-            });
-        }
+      if (e.code !== 'auth/popup-closed-by-user') {
+        toast({
+          variant: "destructive",
+          title: "Google Sign-In Failed",
+          description: e.message?.replace('Firebase: ', ''),
+        });
+      }
     } finally {
-        setIsGoogleLoading(false);
+      setIsGoogleLoading(false);
     }
   }
 
@@ -199,25 +210,31 @@ export function RegistrationForm() {
     console.log("[Action] Client-side submission with values:", values);
 
     try {
-        let finalPhotoUrl: string | undefined = undefined;
+      let finalPhotoUrl: string | undefined = undefined;
 
-        if (values.photoURL && values.photoURL instanceof File) {
-            const dataUri = await fileToDataUri(values.photoURL);
-            const uploadResponse = await fetch('/api/upload', {
-                method: 'POST', body: JSON.stringify({ file: dataUri }), headers: { 'Content-Type': 'application/json' },
-            });
-            const { url, error } = await uploadResponse.json();
-            if (error || !url) throw new Error(error || 'Failed to upload photo.');
-            finalPhotoUrl = url;
-        } else if (typeof values.photoURL === 'string' && values.photoURL.startsWith('http')) {
-            // Use the photo from Google if it exists and wasn't replaced
-            finalPhotoUrl = values.photoURL;
-        }
-      
+      if (values.photoURL && values.photoURL instanceof File) {
+        const dataUri = await fileToDataUri(values.photoURL);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST', body: JSON.stringify({ file: dataUri }), headers: { 'Content-Type': 'application/json' },
+        });
+        const { url, error } = await uploadResponse.json();
+        if (error || !url) throw new Error(error || 'Failed to upload photo.');
+        finalPhotoUrl = url;
+      } else if (typeof values.photoURL === 'string' && values.photoURL.startsWith('http')) {
+        finalPhotoUrl = values.photoURL;
+      }
+
       const submissionData = { ...values, photoURL: finalPhotoUrl };
 
-      const result = await createAccountAndRegisterRider(submissionData);
-      
+      // Determine action based on auth state
+      let result;
+      if (currentUser) {
+        const token = await currentUser.getIdToken();
+        result = await registerAuthenticatedUser({ ...submissionData, uid: currentUser.uid, token });
+      } else {
+        result = await createAccountAndRegisterRider(submissionData);
+      }
+
       if (result.success) {
         toast({
           title: "Success!",
@@ -225,10 +242,29 @@ export function RegistrationForm() {
           action: <PartyPopper className="text-primary" />,
         });
 
-        await signInWithEmailAndPassword(auth, values.email, values.password);
+        // If it was a new sign up, we need to sign them in (handled by action for login-less flow or manual sign in here)
+        // If already logged in, no need.
+        if (!currentUser) {
+          // New user registration success
+          await signInWithEmailAndPassword(auth, values.email, values.password);
+        }
+
         router.push('/dashboard');
 
       } else {
+        if (result.errorType === 'EMAIL_EXISTS') {
+          toast({
+            variant: "destructive",
+            title: "Email Already In Use",
+            description: "This email is already associated with an account. Please log in to complete your registration.",
+            action: (
+              <Button variant="outline" size="sm" onClick={() => router.push('/login')}>
+                Log In
+              </Button>
+            )
+          });
+          return;
+        }
         throw new Error(result.message || "An unknown error occurred.");
       }
     } catch (e) {
@@ -246,208 +282,221 @@ export function RegistrationForm() {
 
   return (
     <>
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="font-headline text-3xl">Create Account &amp; Register</CardTitle>
-        <CardDescription>Fill in your details below to join the ride. Already have an account? <a href="/login" className="text-primary hover:underline">Login here</a>.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            <h3 className="text-lg font-medium text-primary">Account Details</h3>
-            <div className="grid grid-cols-1 gap-2">
-                <Button variant="outline" className="w-full" disabled={isFormProcessing} onClick={handleGoogleSignIn} type="button">
-                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
-                    Continue with Google
-                </Button>
-            </div>
-             <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or with an email</span></div>
-            </div>
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="font-headline text-3xl">{currentUser ? "Complete Registration" : "Create Account & Register"}</CardTitle>
+          <CardDescription>
+            {currentUser
+              ? `Welcome back, ${currentUser.displayName || currentUser.email}. Please complete your registration.`
+              : <>Fill in your details below to join the ride. Already have an account? <a href="/login" className="text-primary hover:underline">Login here</a>.</>
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
+              <h3 className="text-lg font-medium text-primary">Account Details</h3>
+
+              {!currentUser && (
+                <>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button variant="outline" className="w-full" disabled={isFormProcessing} onClick={handleGoogleSignIn} type="button">
+                      {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
+                      Continue with Google
+                    </Button>
+                  </div>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or with an email</span></div>
+                  </div>
+                </>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Email Address</FormLabel>
-                        <FormControl>
-                        <Input placeholder="you@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="you@example.com" {...field} disabled={!!currentUser} />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
-                    )}
+                  )}
                 />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField
+              </div>
+
+              {!currentUser && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
                     control={form.control}
                     name="password"
                     render={({ field }) => (
-                    <FormItem>
+                      <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                        <Input type="password" placeholder="Min. 6 characters" {...field} />
+                          <Input type="password" placeholder="Min. 6 characters" {...field} />
                         </FormControl>
                         <FormMessage />
-                    </FormItem>
+                      </FormItem>
                     )}
-                />
-                 <FormField
+                  />
+                  <FormField
                     control={form.control}
                     name="confirmPassword"
                     render={({ field }) => (
-                    <FormItem>
+                      <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
-                        <Input type="password" placeholder="Re-enter your password" {...field} />
+                          <Input type="password" placeholder="Re-enter your password" {...field} />
                         </FormControl>
                         {passwordsMatch && <p className="text-xs text-green-600">Passwords match.</p>}
                         {passwordsDoNotMatch && <p className="text-xs text-destructive">Passwords do not match.</p>}
                         <FormMessage />
-                    </FormItem>
+                      </FormItem>
                     )}
-                />
-            </div>
-            
-            <Separator />
-            <h3 className="text-lg font-medium text-primary">Participant Details</h3>
-            
-            <FormField
-              control={form.control}
-              name="registrationType"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Vehicle Type</FormLabel>
-                  <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="bike" id="bike" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
-                            <Bike className="mb-3 h-6 w-6" /> Bike
-                        </FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="jeep" id="jeep" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
-                           <Tractor className="mb-3 h-6 w-6" /> Jeep
-                        </FormLabel>
-                      </FormItem>
-                       <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="car" id="car" className="peer sr-only" /></FormControl>
-                        <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
-                           <Car className="mb-3 h-6 w-6" /> Car
-                        </FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                  />
+                </div>
               )}
-            />
-            
-            <FormItem>
-              <FormLabel>Profile Photo</FormLabel>
-              <FormControl>
-                  <div className="flex items-center gap-4">
-                      <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
-                        {photoPreview ? (
-                            <Image src={photoPreview} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
-                        ) : (
-                            <User className="w-10 h-10 text-muted-foreground" />
-                        )}
-                      </div>
-                      <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click() } disabled={isFormProcessing}>
-                         <Upload className="mr-2 h-4 w-4" /> Change Photo
-                      </Button>
-                      <Input
-                        type="file"
-                        className="hidden"
-                        ref={photoInputRef}
-                        onChange={handlePhotoChange}
-                        accept="image/png, image/jpeg, image/heic, image/heif"
-                      />
-                  </div>
-              </FormControl>
-              <FormDescription>Upload a clear photo of yourself. This will appear on your digital ticket.</FormDescription>
-              <FormMessage />
-            </FormItem>
 
-            <FormField control={form.control} name="fullName" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormDescription>This will be your account display name.</FormDescription><FormMessage /></FormItem>)} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField control={form.control} name="age" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" placeholder="18" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="phoneNumber" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="9876543210" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            </div>
-            
-            <div className="space-y-2">
+              <Separator />
+              <h3 className="text-lg font-medium text-primary">Participant Details</h3>
+
+              <FormField
+                control={form.control}
+                name="registrationType"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Vehicle Type</FormLabel>
+                    <FormControl>
+                      <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl><RadioGroupItem value="bike" id="bike" className="peer sr-only" /></FormControl>
+                          <FormLabel htmlFor="bike" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
+                            <Bike className="mb-3 h-6 w-6" /> Bike
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl><RadioGroupItem value="jeep" id="jeep" className="peer sr-only" /></FormControl>
+                          <FormLabel htmlFor="jeep" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
+                            <Tractor className="mb-3 h-6 w-6" /> Jeep
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl><RadioGroupItem value="car" id="car" className="peer sr-only" /></FormControl>
+                          <FormLabel htmlFor="car" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-colors duration-300 w-full cursor-pointer">
+                            <Car className="mb-3 h-6 w-6" /> Car
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormItem>
+                <FormLabel>Profile Photo</FormLabel>
+                <FormControl>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
+                      {photoPreview ? (
+                        <Image src={photoPreview} alt="Profile preview" width={96} height={96} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10 text-muted-foreground" />
+                      )}
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isFormProcessing}>
+                      <Upload className="mr-2 h-4 w-4" /> Change Photo
+                    </Button>
+                    <Input
+                      type="file"
+                      className="hidden"
+                      ref={photoInputRef}
+                      onChange={handlePhotoChange}
+                      accept="image/png, image/jpeg, image/heic, image/heif"
+                    />
+                  </div>
+                </FormControl>
+                <FormDescription>Upload a clear photo of yourself. This will appear on your digital ticket.</FormDescription>
+                <FormMessage />
+              </FormItem>
+
+              <FormField control={form.control} name="fullName" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormDescription>This will be your account display name.</FormDescription><FormMessage /></FormItem>)} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField control={form.control} name="age" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" placeholder="18" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="phoneNumber" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="9876543210" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              </div>
+
+              <div className="space-y-2">
                 <FormField
-                    control={form.control}
-                    name="whatsappNumber"
-                    render={({ field }) => (
+                  control={form.control}
+                  name="whatsappNumber"
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>WhatsApp Number (Optional)</FormLabel>
-                        <FormControl>
+                      <FormLabel>WhatsApp Number (Optional)</FormLabel>
+                      <FormControl>
                         <Input placeholder="Same as phone" {...field} disabled={sameAsPhone} />
-                        </FormControl>
-                        <FormMessage />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
-                    )}
+                  )}
                 />
                 <div className="flex items-center space-x-2">
-                    <Checkbox
-                        id="sameAsPhone"
-                        checked={sameAsPhone}
-                        onCheckedChange={(checked) => setSameAsPhone(!!checked)}
-                    />
-                    <label
-                        htmlFor="sameAsPhone"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                        Same as phone number
-                    </label>
+                  <Checkbox
+                    id="sameAsPhone"
+                    checked={sameAsPhone}
+                    onCheckedChange={(checked) => setSameAsPhone(!!checked)}
+                  />
+                  <label
+                    htmlFor="sameAsPhone"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Same as phone number
+                  </label>
                 </div>
-            </div>
+              </div>
 
-            <div className="space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2 rounded-md border p-4">
-                    <h4 className="font-medium text-base">General Ride Rules &amp; Consent</h4>
-                     <p className="text-sm text-muted-foreground">Please read and agree to all rules to continue.</p>
-                     <div className="space-y-4 pt-2">
-                        {rideRules.map((rule) => (
-                             <FormField
-                                key={rule.id}
-                                control={form.control}
-                                name={rule.id as 'rule1'}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel className="font-normal">{rule.text}</FormLabel>
-                                        <FormMessage />
-                                    </div>
-                                    </FormItem>
-                                )}
-                                />
-                        ))}
-                    </div>
+                  <h4 className="font-medium text-base">General Ride Rules &amp; Consent</h4>
+                  <p className="text-sm text-muted-foreground">Please read and agree to all rules to continue.</p>
+                  <div className="space-y-4 pt-2">
+                    {rideRules.map((rule) => (
+                      <FormField
+                        key={rule.id}
+                        control={form.control}
+                        name={rule.id as 'rule1'}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel className="font-normal">{rule.text}</FormLabel>
+                              <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
                 </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isFormProcessing || !formState.isValid}>
-              {isFormProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isFormProcessing ? "Submitting..." : "Create Account & Register"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+              </div>
+              <Button type="submit" className="w-full" disabled={isFormProcessing || !formState.isValid}>
+                {isFormProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isFormProcessing ? "Submitting..." : (currentUser ? "Complete Registration" : "Create Account & Register")}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </>
   );
 }

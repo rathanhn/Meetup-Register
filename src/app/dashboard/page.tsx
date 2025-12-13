@@ -303,33 +303,8 @@ export default function DashboardPage() {
         )
     }
 
-    if (userData && (userData.role === 'admin' || userData.role === 'superadmin' || userData.role === 'viewer')) {
-        return (
-            <div className="flex flex-col min-h-screen bg-secondary/50">
-                <Header />
-                <main className="flex-grow container mx-auto p-4 md:p-8 flex items-center justify-center">
-                    <Card className="text-center w-full max-w-md">
-                        <CardHeader>
-                            <CardTitle className="flex items-center justify-center gap-2">
-                                <Shield className="text-primary" /> Organizer Account
-                            </CardTitle>
-                            <CardDescription>
-                                Your account has <span className='font-bold'>{userData.role}</span> permissions.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Button asChild>
-                                <Link href="/admin">
-                                    Go to Admin Dashboard
-                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                </Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </main>
-            </div>
-        )
-    }
+    // Admin redirect block removed for testing purposes
+    // if (userData && (userData.role === 'admin' || userData.role === 'superadmin' || userData.role === 'viewer')) { ... }
 
     return (
         <div className="flex flex-col min-h-screen bg-secondary/50">

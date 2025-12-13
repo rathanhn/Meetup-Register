@@ -28,14 +28,14 @@ const announcementSchema = z.object({
 });
 
 const AnnouncementSkeleton = () => (
-    <div className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-background">
-        <div className="flex-grow space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-        </div>
-        <Skeleton className="h-8 w-8" />
+  <div className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-background">
+    <div className="flex-grow space-y-2">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/3" />
     </div>
+    <Skeleton className="h-8 w-8" />
+  </div>
 )
 
 export function AnnouncementManager() {
@@ -44,7 +44,7 @@ export function AnnouncementManager() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [adminDisplayName, setAdminDisplayName] = useState("Admin");
   const { toast } = useToast();
-  
+
   const form = useForm<z.infer<typeof announcementSchema>>({
     resolver: zodResolver(announcementSchema),
     defaultValues: { message: "" },
@@ -53,8 +53,8 @@ export function AnnouncementManager() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setAuthLoading(false);
+      setUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -80,27 +80,39 @@ export function AnnouncementManager() {
 
   const handleDelete = async (id: string) => {
     if (!user || !canPost) return;
-    const result = await deleteAnnouncement({ adminId: user.uid, announcementId: id });
-    if (!result.success) {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    try {
+      const token = await user.getIdToken();
+      const result = await deleteAnnouncement({ adminId: user.uid, announcementId: id, token });
+      if (!result.success) {
+        toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
   };
 
   async function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!user || !userRole || !canPost) {
-        toast({ variant: 'destructive', title: 'Error', description: "You don't have permission to post." });
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: "You don't have permission to post." });
+      return;
     };
-    const result = await addAnnouncement({ 
+
+    try {
+      const token = await user.getIdToken();
+      const result = await addAnnouncement({
         adminId: user.uid,
         adminName: adminDisplayName,
-        message: values.message 
-    });
-    if (result.success) {
-      toast({ title: 'Success', description: 'Announcement posted.' });
-      form.reset();
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+        message: values.message,
+        token,
+      });
+      if (result.success) {
+        toast({ title: 'Success', description: 'Announcement posted.' });
+        form.reset();
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
   }
 
@@ -131,42 +143,42 @@ export function AnnouncementManager() {
           </form>
         </Form>
       )}
-      
+
       <Separator />
 
       <h4 className="text-sm font-medium text-muted-foreground">Posted Announcements</h4>
-      
+
       <ScrollArea className="h-64 pr-4">
         <div className="space-y-3">
           {isLoading && (
             <div className="space-y-3">
-                <AnnouncementSkeleton />
-                <AnnouncementSkeleton />
+              <AnnouncementSkeleton />
+              <AnnouncementSkeleton />
             </div>
           )}
           {error && <p className="text-sm text-destructive flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Error loading.</p>}
           {!isLoading && announcementDocs.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No announcements have been posted yet.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No announcements have been posted yet.</p>
           )}
           {announcementDocs.map(announcement => (
-              <div key={announcement.id} className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-background">
-                <div className="flex-grow">
-                    <p className="text-sm">{announcement.message}</p>
-                    <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                        <div className="flex items-center gap-2">
-                           <UserIcon className="h-3 w-3" />
-                           <span>Posted by: {announcement.adminName} <Badge variant="secondary" className="capitalize">{announcement.adminRole}</Badge></span>
-                        </div>
-                        <p>{announcement.createdAt ? formatDistanceToNow(announcement.createdAt.toDate(), { addSuffix: true }) : 'just now'}</p>
-                    </div>
+            <div key={announcement.id} className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-background">
+              <div className="flex-grow">
+                <p className="text-sm">{announcement.message}</p>
+                <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="h-3 w-3" />
+                    <span>Posted by: {announcement.adminName} <Badge variant="secondary" className="capitalize">{announcement.adminRole}</Badge></span>
+                  </div>
+                  <p>{announcement.createdAt ? formatDistanceToNow(announcement.createdAt.toDate(), { addSuffix: true }) : 'just now'}</p>
                 </div>
-                {canPost && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDelete(announcement.id)} disabled={!user}>
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                    </Button>
-                )}
               </div>
+              {canPost && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDelete(announcement.id)} disabled={!user}>
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Delete</span>
+                </Button>
+              )}
+            </div>
           ))}
         </div>
       </ScrollArea>

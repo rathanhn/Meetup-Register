@@ -9,13 +9,14 @@ import { Loader2, Award, Share2 } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import jsPDF from 'jspdf';
 import { useToast } from '@/hooks/use-toast';
+import { useEventSettings } from '@/hooks/use-event-settings';
 
 // A more robust filter function
 const filter = (node: HTMLElement): boolean => {
-  // Do not inline any external resources, rely on the proxy for images
-  if (node.tagName === 'LINK') return false;
-  if (node.tagName === 'I') return false; // example for ignoring icon fonts
-  return true;
+    // Do not inline any external resources, rely on the proxy for images
+    if (node.tagName === 'LINK') return false;
+    if (node.tagName === 'I') return false; // example for ignoring icon fonts
+    return true;
 };
 
 // Function to generate image data from the certificate element
@@ -32,6 +33,7 @@ const generateImageDataUrl = async (node: HTMLElement): Promise<string> => {
 function CertificatePreviewContent() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const { settings } = useEventSettings();
     const [isProcessing, setIsProcessing] = useState(false);
     const [origin, setOrigin] = useState('');
     const certificateRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ function CertificatePreviewContent() {
 
     useEffect(() => {
         setOrigin(window.location.origin);
-        
+
         const fetchProxiedImage = async () => {
             if (!riderPhotoUrl) {
                 setIsLoadingPhoto(false);
@@ -78,22 +80,22 @@ function CertificatePreviewContent() {
 
         try {
             const dataUrl = await generateImageDataUrl(certificateRef.current);
-            const pdf = new jsPDF({ 
-                orientation: 'landscape', 
-                unit: 'px', 
-                format: [1123, 794] 
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [1123, 794]
             });
 
             pdf.addImage(dataUrl, 'PNG', 0, 0, 1123, 794);
             return pdf;
 
         } catch (e) {
-          console.error(e);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not generate certificate.' });
-          return null;
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not generate certificate.' });
+            return null;
         }
     }
-    
+
     const handleDownload = async () => {
         setIsProcessing(true);
         const pdf = await generatePdf();
@@ -115,7 +117,7 @@ function CertificatePreviewContent() {
         const file = new File([pdfBlob], `${riderName}-certificate.pdf`, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-             try {
+            try {
                 await navigator.share({
                     title: 'TeleFun Freedom Ride Certificate',
                     text: `I completed the TeleFun Freedom Ride! Here's my certificate.`,
@@ -135,7 +137,7 @@ function CertificatePreviewContent() {
         }
         setIsProcessing(false);
     }
-    
+
     if (isLoadingPhoto) {
         return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
     }
@@ -143,12 +145,13 @@ function CertificatePreviewContent() {
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center p-4">
             <div className="transform-gpu scale-[0.3] sm:scale-[0.5] md:scale-[0.6] lg:scale-[0.8] origin-center">
-                <RideCertificate 
+                <RideCertificate
                     ref={certificateRef}
-                    riderName={riderName} 
-                    riderPhotoUrl={proxiedPhotoUrl} 
-                    registrationId={registrationId} 
+                    riderName={riderName}
+                    riderPhotoUrl={proxiedPhotoUrl}
+                    registrationId={registrationId}
                     origin={origin}
+                    settings={settings}
                 />
             </div>
             <div className="flex flex-col sm:flex-row gap-2 mt-8">
@@ -161,7 +164,7 @@ function CertificatePreviewContent() {
                     {isProcessing ? "Generating..." : "Download as PDF"}
                 </Button>
                 {navigator.share && (
-                     <Button onClick={handleShare} disabled={isProcessing || isLoadingPhoto} variant="outline" className="w-full sm:w-auto">
+                    <Button onClick={handleShare} disabled={isProcessing || isLoadingPhoto} variant="outline" className="w-full sm:w-auto">
                         {isProcessing || isLoadingPhoto ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
