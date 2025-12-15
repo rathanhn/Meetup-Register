@@ -56,7 +56,7 @@ export function UserRolesManager() {
     return () => unsubscribe();
   }, []);
 
-  const adminUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('role', 'in', ['superadmin', 'admin', 'viewer'])), []);
+  const adminUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('role', 'in', ['admin', 'viewer'])), []);
   const { data: adminUsers, loading: adminUsersLoading, error: adminUsersError } = useCollection<AppUser>(adminUsersQuery);
 
   const requestingUsersQuery = useMemoFirebase(() => query(collection(db, 'users'), where('accessRequest.status', '==', 'pending_review')), []);
@@ -188,9 +188,7 @@ export function UserRolesManager() {
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="viewer">Viewer</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="superadmin">
-                          Super Admin
-                        </SelectItem>
+
                       </SelectContent>
                     </Select>
                   )}

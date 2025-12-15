@@ -1,4 +1,3 @@
-
 "use client";
 
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -6,7 +5,7 @@ import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Header } from '@/components/header';
+import { useEventSettings } from '@/hooks/use-event-settings';
 import { Loader2, AlertTriangle, Shield, ArrowRight, Ban, Clock, Ticket, MessageSquare, ListChecks, MessageCircle, Instagram, Award } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +19,7 @@ import { RideInfoCard } from '@/components/dashboard/ride-info-card';
 import { DashboardActionsCard } from '@/components/dashboard/dashboard-actions-card';
 import { QnaSection } from '@/components/qna-section';
 import { CertificateCard } from '@/components/dashboard/certificate-card';
+import { Header } from '@/components/header';
 
 const DashboardSkeleton = () => (
     <div className="space-y-4">
@@ -37,6 +37,7 @@ const DashboardSkeleton = () => (
 );
 
 export default function DashboardPage() {
+    const { settings } = useEventSettings();
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
@@ -46,6 +47,10 @@ export default function DashboardPage() {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [origin, setOrigin] = useState('');
+
+    const whatsappGroupUrl = settings?.communityWhatsAppGroupUrl || "https://chat.whatsapp.com/B9glPPTpS1oIZD6fN8AeX4";
+    const organizerUrl = settings?.communityOrganizerWhatsAppUrl || "https://wa.me/916363148287";
+    const instagramUrl = settings?.communityInstagramUrl || "https://www.instagram.com/telefun_";
 
     useEffect(() => {
         setOrigin(window.location.origin);
@@ -249,13 +254,13 @@ export default function DashboardPage() {
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <Button asChild className="w-full bg-green-500 hover:bg-green-600 text-white" size="lg">
-                                        <Link href="https://chat.whatsapp.com/B9glPPTpS1oIZD6fN8AeX4" target="_blank">Join WhatsApp Group</Link>
+                                        <Link href={whatsappGroupUrl} target="_blank">Join WhatsApp Group</Link>
                                     </Button>
                                     <Button asChild className="w-full" variant="outline" size="lg">
-                                        <Link href="https://wa.me/916363148287" target="_blank">Contact Organizers</Link>
+                                        <Link href={organizerUrl} target="_blank">Contact Organizers</Link>
                                     </Button>
                                     <Button asChild className="w-full" variant="outline" size="lg">
-                                        <Link href="https://www.instagram.com/telefun_" target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
+                                        <Link href={instagramUrl} target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -302,9 +307,6 @@ export default function DashboardPage() {
             </div>
         )
     }
-
-    // Admin redirect block removed for testing purposes
-    // if (userData && (userData.role === 'admin' || userData.role === 'superadmin' || userData.role === 'viewer')) { ... }
 
     return (
         <div className="flex flex-col min-h-screen bg-secondary/50">

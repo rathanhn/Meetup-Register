@@ -53,6 +53,16 @@ export interface Perk {
   icon: string;
 }
 
+export interface Sponsor {
+  title: string;
+  subtitle: string;
+  location: string;
+  description: string;
+  whatsappUrl: string;
+  instagramUrl: string;
+  imageUrl: string;
+}
+
 export interface ScheduleEvent {
   id: string;
   time: string;
@@ -93,8 +103,12 @@ export interface EventSettings {
   sponsorWhatsapp?: string;
   sponsorInstagram?: string;
   sponsorImageUrl?: string;
-  developerName?: string;
-  developerLink?: string;
+  sponsors?: Sponsor[]; // New dynamic sponsors list
+  // Community Links
+  communityWhatsAppGroupUrl?: string;
+  communityOrganizerWhatsAppUrl?: string;
+  communityInstagramUrl?: string;
+
 
   // Certificate Settings
   certificateTitle?: string;
@@ -108,6 +122,21 @@ export interface EventSettings {
   ticketSubtitle?: string;
   ticketLogoUrl?: string;
   originShort?: string; // Location on ticket
+
+  // Header Settings
+  headerTitle?: string;
+  headerLogoUrl?: string;
+
+  // Developer / Super Admin Settings
+  developerName?: string;
+  developerCompany?: string;
+  developerWebsite?: string;
+  showDeveloperBranding?: boolean; // If true, shows "Powered by..."
+
+  // Fallback / Default Community Links (Managed by Super Admin)
+  defaultWhatsAppGroupUrl?: string;
+  defaultOrganizerWhatsAppUrl?: string;
+  defaultInstagramUrl?: string;
 }
 
 

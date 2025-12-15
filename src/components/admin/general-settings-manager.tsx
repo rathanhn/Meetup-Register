@@ -182,10 +182,30 @@ export function GeneralSettingsManager() {
         </div>
 
         <Tabs defaultValue="ticket">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3 h-auto min-h-[40px]">
             <TabsTrigger value="ticket">Digital Ticket</TabsTrigger>
             <TabsTrigger value="certificate">Certificate</TabsTrigger>
+            <TabsTrigger value="header">Website Header</TabsTrigger>
+            <TabsTrigger value="community">Community Links</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="header" className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Header Title</Label>
+                <Input name="headerTitle" value={formData.headerTitle || ''} onChange={handleInputChange} placeholder="e.g. RideRegister" />
+                <p className="text-xs text-muted-foreground">The name displayed in the top navigation bar.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Header Logo</Label>
+                <div className="flex gap-2 items-center">
+                  {formData.headerLogoUrl && <img src={formData.headerLogoUrl} className="h-10 w-10 object-contain rounded border" />}
+                  <Input type="file" onChange={(e) => handleFileUpload(e, 'headerLogoUrl')} accept="image/*" />
+                </div>
+                <p className="text-xs text-muted-foreground">The logo displayed in the top navigation bar.</p>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="ticket" className="space-y-4 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,6 +308,25 @@ export function GeneralSettingsManager() {
                 Open Certificate Preview
               </Button>
               <p className="text-xs text-muted-foreground mt-1">Save changes before previewing.</p>
+            </div>
+          </TabsContent>
+          <TabsContent value="community" className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>WhatsApp Group URL</Label>
+                <Input name="communityWhatsAppGroupUrl" value={formData.communityWhatsAppGroupUrl || ''} onChange={handleInputChange} placeholder="https://chat.whatsapp.com/..." />
+                <p className="text-xs text-muted-foreground">Link for the riders' community group.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Organizer WhatsApp URL</Label>
+                <Input name="communityOrganizerWhatsAppUrl" value={formData.communityOrganizerWhatsAppUrl || ''} onChange={handleInputChange} placeholder="https://wa.me/..." />
+                <p className="text-xs text-muted-foreground">Direct contact link for the organizer.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Instagram URL</Label>
+                <Input name="communityInstagramUrl" value={formData.communityInstagramUrl || ''} onChange={handleInputChange} placeholder="https://instagram.com/..." />
+                <p className="text-xs text-muted-foreground">Link to the event or organizer's Instagram profile.</p>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

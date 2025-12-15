@@ -38,67 +38,90 @@ interface StoreDetailsProps {
 }
 
 export function StoreDetails({ settings }: StoreDetailsProps) {
-  const title = settings.sponsorTitle || "Sponsors / Collaborators";
-  const description = settings.sponsorDescription || "Your platform for organizing and participating in exciting community bike rides.";
-  const image = settings.sponsorImageUrl; // If empty, can show placeholder or nothing
-  const whatsapp = settings.sponsorWhatsapp || "https://wa.me/917899359217";
-  const instagram = settings.sponsorInstagram;
+  // Use settings.sponsors array if available and not empty
+  const sponsors = settings.sponsors && settings.sponsors.length > 0
+    ? settings.sponsors
+    // Fallback to singular fields if array is empty but singular image exists (backward compatibility)
+    : (settings.sponsorImageUrl ? [{
+      title: settings.sponsorTitle || "Sponsors / Collaborators",
+      subtitle: settings.sponsorSubtitle || "",
+      location: settings.sponsorLocation || "",
+      description: settings.sponsorDescription || "",
+      whatsappUrl: settings.sponsorWhatsapp || "",
+      instagramUrl: settings.sponsorInstagram || "",
+      imageUrl: settings.sponsorImageUrl
+    }] : []);
+
+  if (sponsors.length === 0) {
+    return null;
+  }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-col md:flex-row h-full">
-        {/* Left Side: Image */}
-        <div className="relative w-full md:w-1/2 h-64 md:h-auto min-h-[250px] bg-muted">
-          {image ? (
-            <Image
-              src={image}
-              alt={title}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              No Image Available
+    <div className="space-y-6">
+      {/* Section Header if there are multiple sponsors, or just one if you prefer avoiding headers for single items */}
+      {sponsors.length > 1 && (
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold font-headline">{settings.sponsorTitle || "Sponsors & Collaborators"}</h2>
+        </div>
+      )}
+
+      {sponsors.map((sponsor, index) => (
+        <Card key={index} className="overflow-hidden">
+          <div className="flex flex-col md:flex-row h-full">
+            {/* Left Side: Image */}
+            <div className={`relative w-full md:w-1/2 h-64 md:h-auto min-h-[250px] bg-muted ${index % 2 === 1 ? 'md:order-2' : ''}`}>
+              {sponsor.imageUrl ? (
+                <Image
+                  src={sponsor.imageUrl}
+                  alt={sponsor.title}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  No Image Available
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Right Side: Content */}
-        <div className="flex flex-col justify-center p-6 md:p-8 md:w-1/2 gap-6">
-          <div>
-            <h3 className="text-2xl md:text-3xl font-bold font-headline mb-0.5 tracking-tight">
-              {title}
-            </h3>
-            {(settings.sponsorSubtitle || settings.sponsorLocation) && (
-              <div className="flex flex-wrap items-center gap-2 mb-3 text-sm font-medium text-primary">
-                {settings.sponsorSubtitle && <span>{settings.sponsorSubtitle}</span>}
-                {settings.sponsorSubtitle && settings.sponsorLocation && <span>&bull;</span>}
-                {settings.sponsorLocation && <span className="uppercase tracking-wider">{settings.sponsorLocation}</span>}
+            {/* Right Side: Content */}
+            <div className="flex flex-col justify-center p-6 md:p-8 md:w-1/2 gap-6">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-bold font-headline mb-0.5 tracking-tight">
+                  {sponsor.title}
+                </h3>
+                {(sponsor.subtitle || sponsor.location) && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3 text-sm font-medium text-primary">
+                    {sponsor.subtitle && <span>{sponsor.subtitle}</span>}
+                    {sponsor.subtitle && sponsor.location && <span>&bull;</span>}
+                    {sponsor.location && <span className="uppercase tracking-wider">{sponsor.location}</span>}
+                  </div>
+                )}
+                <p className="text-muted-foreground leading-relaxed mt-2 whitespace-pre-wrap">
+                  {sponsor.description}
+                </p>
               </div>
-            )}
-            <p className="text-muted-foreground leading-relaxed mt-2">
-              {description}
-            </p>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-auto">
-            {whatsapp && (
-              <Button asChild className="flex-1 bg-green-500 hover:bg-green-600">
-                <Link href={whatsapp} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
-                </Link>
-              </Button>
-            )}
-            {instagram && (
-              <Button asChild variant="outline" className="flex-1">
-                <Link href={instagram} target="_blank" rel="noopener noreferrer">
-                  <InstagramIcon className="mr-2 h-4 w-4" /> Instagram
-                </Link>
-              </Button>
-            )}
+              <div className="flex flex-col sm:flex-row gap-3 mt-auto">
+                {sponsor.whatsappUrl && (
+                  <Button asChild className="flex-1 bg-green-500 hover:bg-green-600">
+                    <Link href={sponsor.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
+                    </Link>
+                  </Button>
+                )}
+                {sponsor.instagramUrl && (
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={sponsor.instagramUrl} target="_blank" rel="noopener noreferrer">
+                      <InstagramIcon className="mr-2 h-4 w-4" /> Instagram
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </Card>
+        </Card>
+      ))}
+    </div>
   );
 }

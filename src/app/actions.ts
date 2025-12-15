@@ -1272,6 +1272,10 @@ const generalSettingsSchema = z.object({
   ticketSubtitle: z.string().optional(),
   ticketLogoUrl: z.string().optional(),
   originShort: z.string().optional(),
+
+  // Header
+  headerTitle: z.string().optional(),
+  headerLogoUrl: z.string().optional(),
 });
 
 export async function manageGeneralSettings(values: z.infer<typeof generalSettingsSchema> & { adminId: string, token?: string }) {
@@ -1465,6 +1469,15 @@ const homepageContentSchema = z.object({
   sponsorWhatsapp: z.string().optional(),
   sponsorInstagram: z.string().optional(),
   sponsorImageUrl: z.string().url().or(z.literal("")).optional(),
+  sponsors: z.array(z.object({
+    title: z.string(),
+    subtitle: z.string(),
+    location: z.string(),
+    description: z.string(),
+    whatsappUrl: z.string(),
+    instagramUrl: z.string(),
+    imageUrl: z.string()
+  })).optional(),
   developerName: z.string().optional(),
   developerLink: z.string().optional(),
 });

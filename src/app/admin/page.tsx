@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -11,7 +10,7 @@ import { RegistrationsTable } from '@/components/admin/registrations-table';
 import { AdminQna } from '@/components/admin/admin-qna';
 import { StatsOverview } from '@/components/admin/stats-overview';
 import { QrScanner } from '@/components/admin/qr-scanner';
-import { ScanLine, Users, Loader2, List, FileCheck, MessageSquare, Megaphone, UserCheck, Flag, Settings, Blocks, ShieldAlert } from 'lucide-react';
+import { ScanLine, Users, Loader2, List, FileCheck, MessageSquare, Megaphone, UserCheck, Flag, Blocks, ShieldAlert, Settings2 } from 'lucide-react';
 import { UserRolesManager } from '@/components/admin/user-roles-manager';
 import type { UserRole } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +20,32 @@ import { AnnouncementManager } from '@/components/admin/announcement-manager';
 import { CheckedInListTable } from '@/components/admin/checked-in-list-table';
 import { FinishersListTable } from '@/components/admin/finishers-list-table';
 import Link from 'next/link';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
+import { useSearchParams } from 'next/navigation';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+
+import { ThemeToggle } from '@/components/theme-toggle';
+import { AuthButton } from '@/components/auth-button';
+import { ScheduleManager } from "./content/schedule-manager";
+import { OrganizerManager } from "./content/organizer-manager";
+import { PromotionManager } from "./content/promotion-manager";
+import { LocationManager } from "./content/location-manager";
+import { EventTimeManager } from "./content/event-time-manager";
+import { GeneralSettingsManager } from "@/components/admin/general-settings-manager";
+import { LocationPartnerManager } from "./content/location-partner-manager";
+import { FaqManager } from "./content/faq-manager";
+import { HomepageContentManager } from "./content/homepage-content-manager";
+import { HomepageVisibilityManager } from "./content/homepage-visibility-manager";
+import { DeveloperSettingsManager } from "@/components/admin/developer-settings-manager";
 
 export default function AdminPage() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<UserRole | null>(null);
+    const searchParams = useSearchParams();
+    const currentTab = searchParams.get('tab') || 'overview';
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -53,133 +73,310 @@ export default function AdminPage() {
 
     const canManageContent = userRole === 'superadmin' || userRole === 'admin';
 
-    return (
-        <div className="flex flex-col min-h-screen bg-secondary/50">
-            <Header />
-            <main className="flex-grow container mx-auto p-4 md:p-8">
-                <div className="w-full max-w-7xl mx-auto space-y-8">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl md:text-3xl font-bold font-headline">Admin Management</h1>
-                        {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : userRole ? (
-                            <Badge variant="outline">Logged in as: <span className="capitalize ml-1 font-semibold">{userRole}</span></Badge>
-                        ) : null}
-                    </div>
+    const renderContent = () => {
+        switch (currentTab) {
+            case 'content-general':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Settings2 className="h-6 w-6 text-primary" /> General Settings</CardTitle>
+                        </CardHeader>
+                        <CardContent><GeneralSettingsManager /></CardContent>
+                    </Card>
+                );
+            case 'content-visibility':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ScanLine className="h-6 w-6 text-primary" /> Brand Visibility</CardTitle>
+                        </CardHeader>
+                        <CardContent><HomepageVisibilityManager /></CardContent>
+                    </Card>
+                );
+            case 'content-homepage':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Blocks className="h-6 w-6 text-primary" /> Homepage Content</CardTitle>
+                        </CardHeader>
+                        <CardContent><HomepageContentManager /></CardContent>
+                    </Card>
+                )
+            case 'content-schedule':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><List className="h-6 w-6 text-primary" /> Schedule Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><ScheduleManager /></CardContent>
+                    </Card>
+                )
+            case 'content-organizers':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Organizer Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><OrganizerManager /></CardContent>
+                    </Card>
+                )
+            case 'content-partners':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Partner Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><LocationPartnerManager /></CardContent>
+                    </Card>
+                )
+            case 'content-promotions':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Megaphone className="h-6 w-6 text-primary" /> Promotion Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><PromotionManager /></CardContent>
+                    </Card>
+                )
+            case 'content-faq':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><MessageSquare className="h-6 w-6 text-primary" /> FAQ Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><FaqManager /></CardContent>
+                    </Card>
+                )
+            case 'content-locations':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ScanLine className="h-6 w-6 text-primary" /> Location Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><LocationManager /></CardContent>
+                    </Card>
+                )
+            case 'content-time':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ScanLine className="h-6 w-6 text-primary" /> Event Time Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><EventTimeManager /></CardContent>
+                    </Card>
+                )
 
-                    {!loading && canManageContent ? (
-                        <>
-                            <StatsOverview />
+            case 'developer':
+                if (userRole !== 'superadmin') return <Card><CardContent className="p-6 text-destructive">Unauthorized</CardContent></Card>;
+                return <DeveloperSettingsManager />;
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                                <div className="space-y-8">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className='flex items-center gap-2'><FileCheck className="h-6 w-6 text-primary" /> Manage Registrations</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <RegistrationsTable />
-                                        </CardContent>
-                                    </Card>
+            case 'roles':
+                if (userRole !== 'superadmin') return <Card><CardContent className="p-6 text-destructive">Unauthorized</CardContent></Card>;
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> User Role Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><UserRolesManager /></CardContent>
+                    </Card>
+                )
 
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className='flex items-center gap-2'><Megaphone className="h-6 w-6 text-primary" />Announcements</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <AnnouncementManager />
-                                        </CardContent>
-                                    </Card>
+            case 'announcements':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Megaphone className="h-6 w-6 text-primary" /> Announcement Management</CardTitle>
+                        </CardHeader>
+                        <CardContent><AnnouncementManager /></CardContent>
+                    </Card>
+                )
 
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className='flex items-center justify-between'>
-                                                <span className='flex items-center gap-2'><Blocks className="h-6 w-6 text-primary" /> Website Content</span>
-                                            </CardTitle>
-                                            <CardDescription>Manage schedule, organizers, promotions, and more.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Link href="/admin/content">
-                                                <Button className="w-full">Manage Content</Button>
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+            case 'registrations':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><FileCheck className="h-6 w-6 text-primary" /> Manage Registrations</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <RegistrationsTable />
+                        </CardContent>
+                    </Card>
+                )
+            case 'announcements':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><Megaphone className="h-6 w-6 text-primary" />Announcements</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <AnnouncementManager />
+                        </CardContent>
+                    </Card>
+                )
+            case 'approved':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><List className="h-6 w-6 text-primary" />Approved Riders List</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <RidersListTable />
+                        </CardContent>
+                    </Card>
+                )
+            case 'checked-in':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><UserCheck className="h-6 w-6 text-primary" />Checked-In Riders</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <CheckedInListTable />
+                        </CardContent>
+                    </Card>
+                )
+            case 'finishers':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><Flag className="h-6 w-6 text-primary" />Finishers List</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <FinishersListTable />
+                        </CardContent>
+                    </Card>
+                )
+            case 'scanner':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ScanLine className="h-6 w-6 text-primary" />
+                                Ticket Scanner
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <QrScanner />
+                        </CardContent>
+                    </Card>
+                )
+            case 'qna':
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><MessageSquare className="h-6 w-6 text-primary" />Community Q&amp;A</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <AdminQna />
+                        </CardContent>
+                    </Card>
+                )
+            case 'roles':
+                if (userRole !== 'superadmin') return <div>Access Denied</div>
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className='flex items-center gap-2'><Users className="h-6 w-6 text-primary" /> User Role Management</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <UserRolesManager />
+                        </CardContent>
+                    </Card>
+                )
 
-                                <div className="space-y-8">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <ScanLine className="h-6 w-6 text-primary" />
-                                                Ticket Scanner
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <QrScanner />
-                                        </CardContent>
-                                    </Card>
+            case 'developer':
+                if (userRole !== 'superadmin') return <div>Access Denied</div>
+                return <DeveloperSettingsManager />;
 
-                                    {userRole === 'superadmin' && (
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle className='flex items-center gap-2'><Users className="h-6 w-6 text-primary" /> User Role Management</CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <UserRolesManager />
-                                            </CardContent>
-                                        </Card>
-                                    )}
-                                </div>
-                            </div>
-
-                            <Card>
+            case 'overview':
+            default:
+                return (
+                    <div className="space-y-6">
+                        <StatsOverview />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = '/admin?tab=registrations'}>
                                 <CardHeader>
-                                    <CardTitle className='flex items-center gap-2'><List className="h-6 w-6 text-primary" />Approved Riders List</CardTitle>
+                                    <CardTitle className="flex items-center gap-2 text-base"><FileCheck className="h-5 w-5" /> Registrations</CardTitle>
+                                    <CardDescription>Review pending signups</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                    <RidersListTable />
-                                </CardContent>
                             </Card>
-
-                            <Card>
+                            <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = '/admin?tab=scanner'}>
                                 <CardHeader>
-                                    <CardTitle className='flex items-center gap-2'><UserCheck className="h-6 w-6 text-primary" />Checked-In Riders</CardTitle>
+                                    <CardTitle className="flex items-center gap-2 text-base"><ScanLine className="h-5 w-5" /> Scanner</CardTitle>
+                                    <CardDescription>Scan tickets at venue</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                    <CheckedInListTable />
-                                </CardContent>
                             </Card>
-
-                            <Card>
+                            <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = '/admin/content'}>
                                 <CardHeader>
-                                    <CardTitle className='flex items-center gap-2'><Flag className="h-6 w-6 text-primary" />Finishers List</CardTitle>
+                                    <CardTitle className="flex items-center gap-2 text-base"><Blocks className="h-5 w-5" /> Content</CardTitle>
+                                    <CardDescription>Edit website content</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                    <FinishersListTable />
-                                </CardContent>
                             </Card>
-
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className='flex items-center gap-2'><MessageSquare className="h-6 w-6 text-primary" />Community Q&amp;A</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <AdminQna />
-                                </CardContent>
-                            </Card>
-                        </>
-                    ) : !loading && (
-                        <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-                            <ShieldAlert className="h-12 w-12 text-destructive" />
-                            <h2 className="text-xl font-bold">Access Denied</h2>
-                            <p className="text-muted-foreground">You do not have permission to view this page.</p>
-                            <Button asChild variant="outline">
-                                <Link href="/dashboard">Return to Dashboard</Link>
-                            </Button>
                         </div>
-                    )}
+                    </div>
+                );
+        }
+    }
+
+    if (loading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+
+    if (!userRole || !canManageContent) {
+        return (
+            <div className="flex flex-col min-h-screen bg-secondary/50">
+                <Header />
+                <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 flex-grow">
+                    <ShieldAlert className="h-12 w-12 text-destructive" />
+                    <h2 className="text-xl font-bold">Access Denied</h2>
+                    <p className="text-muted-foreground">You do not have permission to view this page.</p>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard">Return to Dashboard</Link>
+                    </Button>
                 </div>
-            </main>
-        </div>
+            </div>
+        )
+    }
+
+
+
+    // ... (imports)
+
+    // ... (AdminPage component)
+
+    return (
+        <SidebarProvider>
+            <AppSidebar userRole={userRole} />
+            <SidebarInset>
+                <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                    <div className="flex items-center gap-2 px-4">
+                        <SidebarTrigger className="-ml-1" />
+                        <Separator orientation="vertical" className="mr-2 h-4" />
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="/admin">
+                                        Admin Panel
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                {currentTab !== 'overview' && (
+                                    <>
+                                        <BreadcrumbSeparator className="hidden md:block" />
+                                        <BreadcrumbItem>
+                                            <BreadcrumbPage className="capitalize">{currentTab}</BreadcrumbPage>
+                                        </BreadcrumbItem>
+                                    </>
+                                )}
+                            </BreadcrumbList>
+                        </Breadcrumb>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <ThemeToggle />
+                        <AuthButton />
+                    </div>
+                </header>
+                <div className="flex flex-1 flex-col gap-4 p-4 md:p-8 max-w-7xl w-full mx-auto">
+                    {renderContent()}
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }
