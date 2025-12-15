@@ -40,7 +40,7 @@ import { HomepageContentManager } from "./content/homepage-content-manager";
 import { HomepageVisibilityManager } from "./content/homepage-visibility-manager";
 import { DeveloperSettingsManager } from "@/components/admin/developer-settings-manager";
 
-export default function AdminPage() {
+function AdminDashboardContent() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -336,55 +336,55 @@ export default function AdminPage() {
         )
     }
 
-
-
-    // ... (imports)
-
-    // ... (AdminPage component)
-
     return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-            <SidebarProvider>
-                <AppSidebar userRole={userRole} />
-                <SidebarInset>
-                    <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-                        <div className="flex items-center gap-2 px-4">
-                            <SidebarTrigger className="-ml-1" />
-                            <Separator orientation="vertical" className="mr-2 h-4" />
-                            <Breadcrumb>
-                                <BreadcrumbList>
-                                    <BreadcrumbItem className="hidden md:block">
-                                        <BreadcrumbLink href="/admin">
-                                            Admin Panel
-                                        </BreadcrumbLink>
-                                    </BreadcrumbItem>
-                                    {currentTab !== 'overview' && (
-                                        <>
-                                            <BreadcrumbSeparator className="hidden md:block" />
-                                            <BreadcrumbItem>
-                                                <BreadcrumbPage className="capitalize">{currentTab}</BreadcrumbPage>
-                                            </BreadcrumbItem>
-                                        </>
-                                    )}
-                                </BreadcrumbList>
-                            </Breadcrumb>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            {userRole !== 'superadmin' && (
-                                <Button variant="outline" size="sm" className="hidden md:flex border-yellow-500/50 text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20">
-                                    <ShieldAlert className="w-4 h-4 mr-2" />
-                                    Purchase Full Version
-                                </Button>
-                            )}
-                            <ThemeToggle />
-                            <AuthButton />
-                        </div>
-                    </header>
-                    <div className="flex flex-1 flex-col gap-4 p-4 md:p-8 max-w-7xl w-full mx-auto">
-                        {renderContent()}
+        <SidebarProvider>
+            <AppSidebar userRole={userRole} />
+            <SidebarInset>
+                <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                    <div className="flex items-center gap-2 px-4">
+                        <SidebarTrigger className="-ml-1" />
+                        <Separator orientation="vertical" className="mr-2 h-4" />
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="/admin">
+                                        Admin Panel
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                {currentTab !== 'overview' && (
+                                    <>
+                                        <BreadcrumbSeparator className="hidden md:block" />
+                                        <BreadcrumbItem>
+                                            <BreadcrumbPage className="capitalize">{currentTab}</BreadcrumbPage>
+                                        </BreadcrumbItem>
+                                    </>
+                                )}
+                            </BreadcrumbList>
+                        </Breadcrumb>
                     </div>
-                </SidebarInset>
-            </SidebarProvider>
+                    <div className="flex items-center gap-4">
+                        {userRole !== 'superadmin' && (
+                            <Button variant="outline" size="sm" className="hidden md:flex border-yellow-500/50 text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20">
+                                <ShieldAlert className="w-4 h-4 mr-2" />
+                                Purchase Full Version
+                            </Button>
+                        )}
+                        <ThemeToggle />
+                        <AuthButton />
+                    </div>
+                </header>
+                <div className="flex flex-1 flex-col gap-4 p-4 md:p-8 max-w-7xl w-full mx-auto">
+                    {renderContent()}
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
+    );
+}
+
+export default function AdminPage() {
+    return (
+        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>}>
+            <AdminDashboardContent />
         </Suspense>
     );
 }
