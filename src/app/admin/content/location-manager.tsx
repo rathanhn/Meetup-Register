@@ -12,7 +12,7 @@ import { manageLocation } from "@/app/actions";
 import type { LocationSettings, UserRole } from "@/lib/types";
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, DocumentReference } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, AlertTriangle, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -30,7 +30,7 @@ export function LocationManager() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
 
-  const locationSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'route'), []);
+  const locationSettingsRef = useMemoFirebase(() => doc(db, 'settings', 'route') as DocumentReference<LocationSettings>, []);
   const { data: locationSettings, loading, error } = useDoc<LocationSettings>(locationSettingsRef);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -107,7 +107,7 @@ export function LocationManager() {
               <FormField name="origin" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Start Location (Origin)</FormLabel>
-                  <FormControl><Input {...field} placeholder="e.g., Telefun Mobiles, Madikeri" /></FormControl>
+                  <FormControl><Input {...field} placeholder="e.g., City Center, Downtown" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

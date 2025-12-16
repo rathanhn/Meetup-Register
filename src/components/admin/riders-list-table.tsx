@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { collection, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, getDoc, Query } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import {
     Table,
@@ -37,6 +37,7 @@ import { Card, CardContent } from '../ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { EditRegistrationForm } from './edit-registration-form';
 import { useMemoFirebase } from '@/firebase/memo';
+import { useEventSettings } from '@/hooks/use-event-settings';
 
 
 // Helper function to format WhatsApp links
@@ -52,8 +53,6 @@ const formatWhatsAppLink = (phone: string, message?: string) => {
     return url;
 };
 
-const getTicketMessage = (name: string, ticketUrl: string) => `Hi ${name}, your registration for the TeleFun Mobiles Freedom Ride is confirmed! You can view and download your digital ticket here: ${ticketUrl}`;
-
 const TableSkeleton = () => (
     [...Array(5)].map((_, i) => (
         <TableRow key={i}>
@@ -66,7 +65,8 @@ const TableSkeleton = () => (
 );
 
 export function RidersListTable() {
-    const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), orderBy('createdAt', 'desc')), []);
+    const { settings } = useEventSettings();
+    const registrationsQuery = useMemoFirebase(() => query(collection(db, 'registrations'), orderBy('createdAt', 'desc')) as Query<Registration>, []);
     const { data: registrationsData, loading, error } = useCollection<Registration>(registrationsQuery);
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -144,6 +144,8 @@ export function RidersListTable() {
         }
         setIsDeleting(null);
     };
+
+    const getTicketMessage = (name: string, ticketUrl: string) => `Hi ${name}, your registration for the ${settings?.ticketTitle || settings?.headerTitle || 'Event'} is confirmed! You can view and download your digital ticket here: ${ticketUrl}`;
 
     const handleExport = () => {
         if (!filteredRegistrations.length) return;

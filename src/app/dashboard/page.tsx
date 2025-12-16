@@ -124,7 +124,8 @@ export default function DashboardPage() {
             case 'pending':
                 const names = registrationData.fullName;
                 const adminUrl = `${origin}/admin`;
-                const message = `Hi Team Telefun, please review my registration.\n\nName(s): ${names}\nRegistration ID: ${registrationData.id}\n\nManage here: ${adminUrl}`;
+                const eventName = settings?.headerTitle || "Event Team";
+                const message = `Hi ${eventName} Team, please review my registration.\n\nName(s): ${names}\nRegistration ID: ${registrationData.id}\n\nManage here: ${adminUrl}`;
                 const whatsappUrl = `https://wa.me/916363148287?text=${encodeURIComponent(message)}`;
 
                 return (
@@ -140,7 +141,7 @@ export default function DashboardPage() {
                             <Button asChild className="mt-4 bg-green-500 hover:bg-green-600 text-white">
                                 <Link href={whatsappUrl} target="_blank">
                                     <MessageCircle className="mr-2 h-4 w-4" />
-                                    Notify Team Telefun
+                                    Notify Organizers
                                 </Link>
                             </Button>
                         </CardContent>

@@ -119,8 +119,8 @@ function CertificatePreviewContent() {
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
-                    title: 'TeleFun Freedom Ride Certificate',
-                    text: `I completed the TeleFun Freedom Ride! Here's my certificate.`,
+                    title: `${settings?.headerTitle || 'Event'} Certificate`,
+                    text: `I completed the ${settings?.headerTitle || 'Ride'}! Here's my certificate.`,
                     files: [file],
                 });
             } catch (e: any) {
