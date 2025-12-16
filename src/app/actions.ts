@@ -1292,6 +1292,11 @@ const generalSettingsSchema = z.object({
   // Header
   headerTitle: z.string().optional(),
   headerLogoUrl: z.string().optional(),
+
+  // Community Links
+  communityWhatsAppGroupUrl: z.string().optional(),
+  communityOrganizerWhatsAppUrl: z.string().optional(),
+  communityInstagramUrl: z.string().optional(),
 });
 
 export async function manageGeneralSettings(values: z.infer<typeof generalSettingsSchema> & { adminId: string, token?: string }) {
