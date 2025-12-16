@@ -58,20 +58,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
-      <div className="bg-secondary text-secondary-foreground py-2 border-b">
-        <div className="container mx-auto flex justify-center items-center gap-2 text-center px-4">
-          <Code className="h-4 w-4 flex-shrink-0" />
-          <p className="text-xs sm:text-sm font-medium">
-            Designed & Developed by {eventSettings.developerLink ? (
-              <Link href={eventSettings.developerLink} target="_blank" className="hover:underline hover:text-primary transition-colors">
-                {eventSettings.developerName || "Rathan H N"}
-              </Link>
-            ) : (
-              <span>{eventSettings.developerName || "Rathan H N"}</span>
-            )}
-          </p>
-        </div>
-      </div>
+
       <CountdownTimer targetDate={eventSettings.startTime} />
       <main className="flex-grow container mx-auto p-2 md:p-4">
         <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -202,18 +189,7 @@ export default function Home() {
 
         </div>
       </main>
-      <footer className="text-center p-4 text-muted-foreground text-sm">
-        <p>&copy; {new Date().getFullYear()} RideRegister. All Rights Reserved.</p>
-        <p>Follow us on <Link href="https://www.instagram.com/your-profile" target="_blank" className="text-primary hover:underline">Instagram</Link></p>
-        <p className="mt-2">Designed & Developed by {eventSettings.developerLink ? (
-          <Link href={eventSettings.developerLink} target="_blank" className="hover:underline hover:text-primary transition-colors">
-            {eventSettings.developerName || "Rathan H N"}
-          </Link>
-        ) : (
-          <span>{eventSettings.developerName || "Rathan H N"}</span>
-        )}
-        </p>
-      </footer>
+
     </div>
   );
 }
