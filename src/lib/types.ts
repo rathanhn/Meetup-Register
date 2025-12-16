@@ -132,6 +132,10 @@ export interface EventSettings {
   developerLink?: string; // For homepage footer
   developerCompany?: string;
   developerWebsite?: string;
+  developerPhotoUrl?: string; // New
+  developerEmail?: string;    // New
+  developerInstagram?: string;// New
+  developerContact?: string;  // New
   showDeveloperBranding?: boolean; // If true, shows "Powered by..."
 
   // Fallback / Default Community Links (Managed by Super Admin)

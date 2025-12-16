@@ -1297,6 +1297,22 @@ const generalSettingsSchema = z.object({
   communityWhatsAppGroupUrl: z.string().optional(),
   communityOrganizerWhatsAppUrl: z.string().optional(),
   communityInstagramUrl: z.string().optional(),
+
+  // Developer Settings
+  developerName: z.string().optional(),
+  developerLink: z.string().optional(), // footer link
+  developerCompany: z.string().optional(),
+  developerWebsite: z.string().optional(),
+  developerPhotoUrl: z.string().optional(),
+  developerEmail: z.string().optional(),
+  developerInstagram: z.string().optional(),
+  developerContact: z.string().optional(),
+  showDeveloperBranding: z.boolean().optional(),
+
+  // Default Links
+  defaultWhatsAppGroupUrl: z.string().optional(),
+  defaultOrganizerWhatsAppUrl: z.string().optional(),
+  defaultInstagramUrl: z.string().optional(),
 });
 
 export async function manageGeneralSettings(values: z.infer<typeof generalSettingsSchema> & { adminId: string, token?: string }) {

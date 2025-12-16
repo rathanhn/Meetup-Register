@@ -138,8 +138,24 @@ export function DeveloperSettingsManager() {
                             <Input name="developerName" value={formData.developerName || ''} onChange={handleInputChange} placeholder="Your Name / Agency" />
                         </div>
                         <div className="space-y-2">
+                            <Label>Developer Photo URL</Label>
+                            <Input name="developerPhotoUrl" value={formData.developerPhotoUrl || ''} onChange={handleInputChange} placeholder="https://..." />
+                        </div>
+                        <div className="space-y-2">
                             <Label>Developer Website</Label>
                             <Input name="developerWebsite" value={formData.developerWebsite || ''} onChange={handleInputChange} placeholder="https://your-portfolio.com" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Developer Email</Label>
+                            <Input name="developerEmail" value={formData.developerEmail || ''} onChange={handleInputChange} placeholder="contact@dev.com" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Developer Instagram</Label>
+                            <Input name="developerInstagram" value={formData.developerInstagram || ''} onChange={handleInputChange} placeholder="@handle" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Developer Contact Number</Label>
+                            <Input name="developerContact" value={formData.developerContact || ''} onChange={handleInputChange} placeholder="+91..." />
                         </div>
                     </div>
                 </CardContent>
