@@ -29,25 +29,25 @@ import { useMemoFirebase } from '@/firebase/memo';
 
 
 type FinishedParticipant = {
-    id: string;
-    registrationId: string;
-    name: string;
-    phone: string;
-    photoUrl?: string;
-    type: Registration['registrationType'];
-    certificateGranted?: boolean;
+  id: string;
+  registrationId: string;
+  name: string;
+  phone: string;
+  photoUrl?: string;
+  type: Registration['registrationType'];
+  certificateGranted?: boolean;
 }
 
 const TableSkeleton = () => (
-    [...Array(5)].map((_, i) => (
-        <TableRow key={i}>
-            <TableCell><Skeleton className="h-10 w-10 rounded-full" /></TableCell>
-            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-            <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
-            <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
-            <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20 inline-block" /><Skeleton className="h-8 w-20 inline-block" /></TableCell>
-        </TableRow>
-    ))
+  [...Array(5)].map((_, i) => (
+    <TableRow key={i}>
+      <TableCell><Skeleton className="h-10 w-10 rounded-full" /></TableCell>
+      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+      <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+      <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
+      <TableCell className="text-right space-x-2"><Skeleton className="h-8 w-20 inline-block" /><Skeleton className="h-8 w-20 inline-block" /></TableCell>
+    </TableRow>
+  ))
 );
 
 
@@ -63,13 +63,13 @@ export function FinishersListTable() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setAuthLoading(false);
+      setUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     if (user) {
       const fetchUserRole = async () => {
         const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -85,21 +85,21 @@ export function FinishersListTable() {
 
   const finishedParticipants = useMemo(() => {
     if (!registrations) return [];
-    
+
     const participants: FinishedParticipant[] = [];
     registrations.forEach(reg => {
       if (reg.status !== 'approved') return;
 
       if (reg.rider1Finished) {
-          participants.push({
-              id: `${reg.id}-1`,
-              registrationId: reg.id,
-              name: reg.fullName,
-              phone: reg.phoneNumber,
-              photoUrl: reg.photoURL,
-              type: reg.registrationType,
-              certificateGranted: reg.certificateGranted,
-          });
+        participants.push({
+          id: `${reg.id}-1`,
+          registrationId: reg.id,
+          name: reg.fullName,
+          phone: reg.phoneNumber,
+          photoUrl: reg.photoURL,
+          type: reg.registrationType,
+          certificateGranted: reg.certificateGranted,
+        });
       }
     });
 
@@ -108,12 +108,12 @@ export function FinishersListTable() {
 
   const filteredParticipants = useMemo(() => {
     if (!searchTerm) return finishedParticipants;
-    return finishedParticipants.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.phone.includes(searchTerm)
+    return finishedParticipants.filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.phone.includes(searchTerm)
     );
   }, [finishedParticipants, searchTerm]);
-  
+
   const handleExport = () => {
     if (!filteredParticipants.length) return;
 
@@ -136,18 +136,23 @@ export function FinishersListTable() {
     link.click();
     document.body.removeChild(link);
   };
-   
+
   const handleCertificateToggle = async (participant: FinishedParticipant) => {
     if (!user || !canEdit) return;
 
     setIsProcessing(participant.registrationId);
-    const action = participant.certificateGranted ? revokeCertificate : grantCertificate;
-    const result = await action({ adminId: user.uid, registrationId: participant.registrationId });
-    
-    if (result.success) {
-      toast({ title: 'Success', description: result.message });
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    try {
+      const token = await user.getIdToken();
+      const action = participant.certificateGranted ? revokeCertificate : grantCertificate;
+      const result = await action({ adminId: user.uid, registrationId: participant.registrationId, token });
+
+      if (result.success) {
+        toast({ title: 'Success', description: result.message });
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
     setIsProcessing(null);
   };
@@ -176,107 +181,107 @@ export function FinishersListTable() {
 
   return (
     <>
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-            <Input 
-                placeholder="Search by name or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:max-w-sm"
-            />
-            <Button onClick={handleExport} disabled={filteredParticipants.length === 0} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" />
-                Export as CSV
-            </Button>
-        </div>
-        
-        {/* Mobile View - Cards */}
-        <div className="md:hidden space-y-4">
-           {isLoading ? (
-                [...Array(3)].map((_, i) => (
-                    <Card key={i}><CardContent className="p-4 flex items-center gap-3"><Skeleton className="h-12 w-12 rounded-full" /><div className="space-y-1 flex-grow"><Skeleton className="h-5 w-32" /><Skeleton className="h-4 w-24" /></div></CardContent></Card>
-                ))
-            ) : filteredParticipants.length > 0 ? (
-                filteredParticipants.map((p) => (
-                    <Card key={p.id}>
-                        <CardContent className="p-4 space-y-3">
-                             <div className="flex items-center gap-3">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src={p.photoUrl} alt={p.name} />
-                                    <AvatarFallback><UserIcon /></AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="font-semibold">{p.name}</p>
-                                    <p className="text-sm text-muted-foreground">{p.phone}</p>
-                                    <Badge variant="secondary" className="mt-1 capitalize">{p.type}</Badge>
-                                </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><Flag className="mr-2 h-4 w-4" />Finished</Badge>
-                                {p.certificateGranted && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>}
-                            </div>
-                            <div className="flex flex-col gap-2 pt-2 border-t">
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={generatePreviewUrl(p)} target="_blank">
-                                        <Eye className="mr-2 h-4 w-4" /> View Certificate
-                                    </Link>
-                                </Button>
-                                {canEdit && (
-                                    <Button size="sm" variant="outline" disabled={isProcessing === p.registrationId} onClick={() => handleCertificateToggle(p)}>
-                                        {isProcessing === p.registrationId ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : (p.certificateGranted ? <RotateCcw className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4"/>)}
-                                        {p.certificateGranted ? 'Revoke Certificate' : 'Grant Certificate'}
-                                    </Button>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))
-            ) : (
-                <div className="text-center py-10 text-muted-foreground">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</div>
-            )}
-        </div>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <Input
+          placeholder="Search by name or phone..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:max-w-sm"
+        />
+        <Button onClick={handleExport} disabled={filteredParticipants.length === 0} className="w-full sm:w-auto">
+          <Download className="mr-2 h-4 w-4" />
+          Export as CSV
+        </Button>
+      </div>
 
-        {/* Desktop View - Table */}
-        <div className="hidden md:block border rounded-lg">
-            <Table>
-                <TableHeader><TableRow><TableHead>Photo</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                <TableBody>
-                {isLoading ? (<TableSkeleton />) : filteredParticipants.length > 0 ? (
-                    filteredParticipants.map((p) => (
-                    <TableRow key={p.id}>
-                        <TableCell>
-                            <Avatar>
-                                <AvatarImage src={p.photoUrl} alt={p.name} />
-                                <AvatarFallback><UserIcon /></AvatarFallback>
-                            </Avatar>
-                        </TableCell>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell>
-                            <div className="flex flex-col gap-1">
-                                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 w-fit"><Flag className="mr-2 h-4 w-4" />Finished</Badge>
-                                {p.certificateGranted && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>}
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                            <Button asChild size="sm" variant="outline">
-                                <Link href={generatePreviewUrl(p)} target="_blank">
-                                    <Eye className="mr-2 h-4 w-4" /> View
-                                </Link>
-                            </Button>
-                             {canEdit && (
-                                <Button size="sm" variant="outline" disabled={isProcessing === p.registrationId} onClick={() => handleCertificateToggle(p)}>
-                                    {isProcessing === p.registrationId ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : (p.certificateGranted ? <RotateCcw className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4"/>)}
-                                    {p.certificateGranted ? 'Revoke' : 'Grant'}
-                                </Button>
-                            )}
-                        </TableCell>
-                    </TableRow>
-                    ))
-                ) : (
-                    <TableRow><TableCell colSpan={4} className="text-center h-24">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</TableCell></TableRow>
-                )}
-                </TableBody>
-            </Table>
-        </div>
+      {/* Mobile View - Cards */}
+      <div className="md:hidden space-y-4">
+        {isLoading ? (
+          [...Array(3)].map((_, i) => (
+            <Card key={i}><CardContent className="p-4 flex items-center gap-3"><Skeleton className="h-12 w-12 rounded-full" /><div className="space-y-1 flex-grow"><Skeleton className="h-5 w-32" /><Skeleton className="h-4 w-24" /></div></CardContent></Card>
+          ))
+        ) : filteredParticipants.length > 0 ? (
+          filteredParticipants.map((p) => (
+            <Card key={p.id}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={p.photoUrl} alt={p.name} />
+                    <AvatarFallback><UserIcon /></AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{p.name}</p>
+                    <p className="text-sm text-muted-foreground">{p.phone}</p>
+                    <Badge variant="secondary" className="mt-1 capitalize">{p.type}</Badge>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><Flag className="mr-2 h-4 w-4" />Finished</Badge>
+                  {p.certificateGranted && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>}
+                </div>
+                <div className="flex flex-col gap-2 pt-2 border-t">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={generatePreviewUrl(p)} target="_blank">
+                      <Eye className="mr-2 h-4 w-4" /> View Certificate
+                    </Link>
+                  </Button>
+                  {canEdit && (
+                    <Button size="sm" variant="outline" disabled={isProcessing === p.registrationId} onClick={() => handleCertificateToggle(p)}>
+                      {isProcessing === p.registrationId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (p.certificateGranted ? <RotateCcw className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4" />)}
+                      {p.certificateGranted ? 'Revoke Certificate' : 'Grant Certificate'}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="text-center py-10 text-muted-foreground">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</div>
+        )}
+      </div>
+
+      {/* Desktop View - Table */}
+      <div className="hidden md:block border rounded-lg">
+        <Table>
+          <TableHeader><TableRow><TableHead>Photo</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {isLoading ? (<TableSkeleton />) : filteredParticipants.length > 0 ? (
+              filteredParticipants.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Avatar>
+                      <AvatarImage src={p.photoUrl} alt={p.name} />
+                      <AvatarFallback><UserIcon /></AvatarFallback>
+                    </Avatar>
+                  </TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 w-fit"><Flag className="mr-2 h-4 w-4" />Finished</Badge>
+                      {p.certificateGranted && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 w-fit"><CheckCircle className="mr-2 h-4 w-4" />Certificate Granted</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={generatePreviewUrl(p)} target="_blank">
+                        <Eye className="mr-2 h-4 w-4" /> View
+                      </Link>
+                    </Button>
+                    {canEdit && (
+                      <Button size="sm" variant="outline" disabled={isProcessing === p.registrationId} onClick={() => handleCertificateToggle(p)}>
+                        {isProcessing === p.registrationId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (p.certificateGranted ? <RotateCcw className="mr-2 h-4 w-4" /> : <Award className="mr-2 h-4 w-4" />)}
+                        {p.certificateGranted ? 'Revoke' : 'Grant'}
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow><TableCell colSpan={4} className="text-center h-24">{searchTerm ? 'No finishers match your search.' : 'No participants have finished yet.'}</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }
