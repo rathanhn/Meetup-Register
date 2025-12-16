@@ -3,7 +3,6 @@
 
 import { Header } from "@/components/header";
 import { Announcements } from "@/components/announcements";
-import { Offers } from "@/components/offers";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { StoreDetails } from "@/components/store-details";
 import { RouteMap } from "@/components/route-map";
@@ -20,7 +19,6 @@ import { doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useMemo } from "react";
 import type { EventSettings } from "@/lib/types";
-import { GoogleReviews } from "@/components/google-reviews";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { LocationPartnerCard } from "@/components/location-partner-card";
@@ -171,19 +169,7 @@ export default function Home() {
               <Faq />
             </section>
 
-            {/* Reviews */}
-            {eventSettings.showReviews && (
-              <section>
-                <GoogleReviews />
-              </section>
-            )}
 
-            {/* Promotions */}
-            {eventSettings.showPromotions && (
-              <section>
-                <Offers />
-              </section>
-            )}
           </div>
 
 
