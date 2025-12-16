@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Save, Lock, Code } from 'lucide-react';
+import { Loader2, Save, Lock, Code, Upload } from 'lucide-react';
 import type { EventSettings, UserRole } from "@/lib/types";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { manageGeneralSettings } from '@/app/actions';
+import Image from 'next/image';
+import { useRef } from 'react';
+
+const fileToDataUri = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
 
 export function DeveloperSettingsManager() {
     const [user, setUser] = useState<User | null>(null);
@@ -20,8 +31,10 @@ export function DeveloperSettingsManager() {
     const [eventSettings, setEventSettings] = useState<EventSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const [formData, setFormData] = useState<Partial<EventSettings>>({});
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -61,6 +74,30 @@ export function DeveloperSettingsManager() {
 
     const handleSwitchChange = (checked: boolean) => {
         setFormData(prev => ({ ...prev, showDeveloperBranding: checked }));
+    };
+
+    const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const dataUri = await fileToDataUri(file);
+            const uploadResponse = await fetch('/api/upload', {
+                method: 'POST',
+                body: JSON.stringify({ file: dataUri }),
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const { url, error } = await uploadResponse.json();
+            if (error || !url) throw new Error(error || 'Failed to upload photo.');
+
+            setFormData(prev => ({ ...prev, developerPhotoUrl: url }));
+            toast({ title: "Success", description: "Photo uploaded successfully." });
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Upload Failed', description: e.message });
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleSaveSettings = async () => {
@@ -138,8 +175,32 @@ export function DeveloperSettingsManager() {
                             <Input name="developerName" value={formData.developerName || ''} onChange={handleInputChange} placeholder="Your Name / Agency" />
                         </div>
                         <div className="space-y-2">
-                            <Label>Developer Photo URL</Label>
-                            <Input name="developerPhotoUrl" value={formData.developerPhotoUrl || ''} onChange={handleInputChange} placeholder="https://..." />
+                            <Label>Developer Photo</Label>
+                            <div className="flex items-center gap-4">
+                                {formData.developerPhotoUrl ? (
+                                    <div className="relative w-16 h-16 rounded-full overflow-hidden border">
+                                        <Image src={formData.developerPhotoUrl} alt="Developer" fill className="object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border">
+                                        <Code className="h-8 w-8 text-muted-foreground/50" />
+                                    </div>
+                                )}
+                                <div className="flex-1">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
+                                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                        {formData.developerPhotoUrl ? 'Change Photo' : 'Upload Photo'}
+                                    </Button>
+                                    <Input
+                                        ref={photoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handlePhotoUpload}
+                                        disabled={isUploading}
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Developer Website</Label>
