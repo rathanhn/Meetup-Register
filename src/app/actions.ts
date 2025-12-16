@@ -370,9 +370,25 @@ export async function deleteRegistration(values: z.infer<typeof deleteRegistrati
   const { registrationId } = values;
 
   try {
+    // 1. Delete from Firestore
     await adminDb.collection("registrations").doc(registrationId).delete();
     await adminDb.collection("users").doc(registrationId).delete();
-    return { success: true, message: "Registration and user data have been deleted." };
+
+    // 2. Delete from Authentication
+    try {
+      await adminAuth.deleteUser(registrationId);
+      console.log(`[Action] Deleted user ${registrationId} from Firebase Auth.`);
+    } catch (authError: any) {
+      if (authError.code === 'auth/user-not-found') {
+        console.warn(`[Action] User ${registrationId} not found in Auth (already deleted or never existed).`);
+      } else {
+        console.error(`[Action] Failed to delete user ${registrationId} from Auth:`, authError);
+        // Decide if you want to throw here or just warn. Usually warning is safer for data cleanup.
+      }
+    }
+
+    revalidatePath('/admin'); // Revalidate admin pages
+    return { success: true, message: "Registration, user data, and login access have been permanently deleted." };
   } catch (error: any) {
     console.error("Delete registration failed", error);
     return { success: false, message: "Failed to delete registration data." };
