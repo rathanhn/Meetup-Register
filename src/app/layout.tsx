@@ -1,9 +1,10 @@
 
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { Footer } from "@/components/footer";
 
 export const metadata: Metadata = {
   title: 'RideRegister',
@@ -25,14 +26,17 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
+          <div className="flex flex-col min-h-screen">
             {children}
-            <Toaster />
-            <FirebaseErrorListener />
+            <Footer />
+          </div>
+          <Toaster />
+          <FirebaseErrorListener />
         </ThemeProvider>
       </body>
     </html>
