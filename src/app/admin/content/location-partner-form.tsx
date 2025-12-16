@@ -43,12 +43,12 @@ interface LocationPartnerFormProps {
 }
 
 const fileToDataUri = (file: File) => {
-    return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: LocationPartnerFormProps) {
@@ -63,14 +63,14 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-     if (isOpen) {
-        if (partner) {
-          form.reset(partner);
-          setPhotoPreview(partner.imageUrl);
-        } else {
-          form.reset({ name: "", websiteUrl: "", imageUrl: "", imageHint: "" });
-          setPhotoPreview(null);
-        }
+    if (isOpen) {
+      if (partner) {
+        form.reset(partner);
+        setPhotoPreview(partner.imageUrl);
+      } else {
+        form.reset({ name: "", websiteUrl: "", imageUrl: "", imageHint: "" });
+        setPhotoPreview(null);
+      }
     }
   }, [partner, form, isOpen]);
 
@@ -84,13 +84,13 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
       try {
         const dataUri = await fileToDataUri(file);
         const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: JSON.stringify({ file: dataUri }),
-            headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          body: JSON.stringify({ file: dataUri }),
+          headers: { 'Content-Type': 'application/json' },
         });
         const { url, error } = await uploadResponse.json();
         if (error || !url) {
-            throw new Error(error || 'Failed to upload photo.');
+          throw new Error(error || 'Failed to upload photo.');
         }
         form.setValue('imageUrl', url, { shouldValidate: true });
         setPhotoPreview(url);
@@ -106,26 +106,28 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
     try {
-        const result = await manageLocationPartner({ ...values, adminId: user.uid, partnerId: partner?.id });
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await manageLocationPartner({ ...values, adminId: user.uid, partnerId: partner?.id, token });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
-  
+
   const handleDelete = async () => {
     if (!user || !partner) return;
     try {
-        const result = await deleteLocationPartner(partner.id, user.uid);
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await deleteLocationPartner(partner.id, user.uid, token);
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -141,53 +143,53 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
             <FormField name="name" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Partner Name</FormLabel><FormControl><Input {...field} placeholder="e.g., 5G Holiday Escape Resort" /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField name="websiteUrl" control={form.control} render={({ field }) => (
+            <FormField name="websiteUrl" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Instagram URL (Optional)</FormLabel><FormControl><Input {...field} placeholder="https://instagram.com/profilename" /></FormControl><FormMessage /></FormItem>
             )} />
-            
+
             <FormItem>
               <FormLabel>Partner Photo/Logo</FormLabel>
               <FormControl>
                 <div className="space-y-2">
-                    <div className="relative w-full aspect-video rounded-md border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
+                  <div className="relative w-full aspect-video rounded-md border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
                     {photoPreview ? (
-                        <Image src={photoPreview} alt="Partner preview" fill className="object-cover" />
+                      <Image src={photoPreview} alt="Partner preview" fill className="object-cover" />
                     ) : null}
-                     {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
-                    </div>
-                    <Button type="button" variant="outline" className="w-full" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
-                        <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change Photo' : 'Upload Photo'}
-                    </Button>
-                    <Input
+                    {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
+                  </div>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
+                    <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                  </Button>
+                  <Input
                     type="file"
                     className="hidden"
                     ref={photoInputRef}
                     onChange={handlePhotoChange}
                     accept="image/png, image/jpeg"
                     disabled={isUploading}
-                    />
+                  />
                 </div>
               </FormControl>
-               <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+              <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
             </FormItem>
 
-             <FormField name="imageHint" control={form.control} render={({ field }) => (
+            <FormField name="imageHint" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Image Hint</FormLabel><FormControl><Input {...field} placeholder="e.g., resort building" /></FormControl><FormMessage /></FormItem>
             )} />
 
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between w-full pt-4 sticky bottom-0 bg-background/95 py-3 -mx-1 px-1">
-                {partner ? (
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this partner.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                ) : <div />}
+              {partner ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this partner.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : <div />}
               <Button type="submit" disabled={isSubmitting || isUploading}>
                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {partner ? "Save Changes" : "Create Partner"}
@@ -200,4 +202,3 @@ export function LocationPartnerForm({ isOpen, setIsOpen, partner, user }: Locati
   );
 }
 
-    

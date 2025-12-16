@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { LayoutDashboard, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { UserRole } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 export function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
@@ -41,19 +41,81 @@ export function AuthButton() {
   };
 
   useEffect(() => {
+    let unsubscribeUserDoc: (() => void) | undefined;
+
     const fetchUserRole = async () => {
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          setUserRole(userDoc.data().role as UserRole);
-        } else {
-          setUserRole('user');
-        }
+        console.log("AuthButton: Fetching role for user", user.uid);
+        unsubscribeUserDoc = onSnapshot(doc(db, "users", user.uid), (userDoc) => {
+          if (userDoc.exists()) {
+            const role = userDoc.data().role as UserRole;
+            setUserRole(role);
+
+            // Detailed Permission Logging
+            const rolePermissions: Record<string, any> = {
+              superadmin: {
+                description: "👑 Super Admin: Full System Access",
+                canManageUserRoles: true,
+                canManageDeveloperSettings: true,
+                canManageContent: true,
+                canManageRegistrations: true,
+                canScanTickets: true,
+                canManageQna: true,
+              },
+              admin: {
+                description: "🛡️ Admin: Event Manager Access",
+                canManageUserRoles: false,
+                canManageDeveloperSettings: false,
+                canManageContent: true,
+                canManageRegistrations: true,
+                canScanTickets: true,
+                canManageQna: true,
+              },
+              viewer: {
+                description: "👁️ Viewer: Read-Only Access",
+                canManageUserRoles: false,
+                canManageDeveloperSettings: false,
+                canManageContent: false,
+                canManageRegistrations: false,
+                canScanTickets: false,
+                canManageQna: false,
+              },
+              user: {
+                description: "👤 User: Participant Access",
+                canManageUserRoles: false,
+                canManageDeveloperSettings: false,
+                canManageContent: false,
+                canManageRegistrations: false,
+                canScanTickets: false,
+                canManageQna: false,
+              }
+            };
+
+            const permissions = rolePermissions[role] || rolePermissions['user'];
+
+            console.group(`🔐 User Access Level: ${role.toUpperCase()}`);
+            console.log(`User ID: ${user.uid}`);
+            console.log(`Role Description: ${permissions.description}`);
+            console.table(permissions);
+            console.groupEnd();
+
+          } else {
+            console.log("AuthButton: User doc not found, defaulting to user");
+            setUserRole('user');
+          }
+        }, (error) => {
+          console.error("AuthButton: Error fetching user role:", error);
+        });
       } else {
         setUserRole(null);
       }
     };
+
     fetchUserRole();
+
+    return () => {
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+    }
   }, [user]);
 
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';

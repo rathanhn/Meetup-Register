@@ -129,6 +129,7 @@ export interface EventSettings {
 
   // Developer / Super Admin Settings
   developerName?: string;
+  developerLink?: string; // For homepage footer
   developerCompany?: string;
   developerWebsite?: string;
   showDeveloperBranding?: boolean; // If true, shows "Powered by..."

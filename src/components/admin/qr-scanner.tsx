@@ -40,17 +40,17 @@ export function QrScanner() {
   const [isFetching, setIsFetching] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameId = useRef<number>();
-  
+
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setAuthLoading(false);
+      setUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -71,9 +71,9 @@ export function QrScanner() {
 
   const getCameraPermission = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setError('Camera access is not supported by your browser.');
-        setHasCameraPermission(false);
-        return;
+      setError('Camera access is not supported by your browser.');
+      setHasCameraPermission(false);
+      return;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -87,7 +87,7 @@ export function QrScanner() {
       setError('Camera permission denied. Please enable it in your browser settings.');
     }
   };
-  
+
   const stopScan = useCallback(() => {
     setIsScanning(false);
     if (animationFrameId.current) {
@@ -123,7 +123,7 @@ export function QrScanner() {
         return;
       }
     } catch (e) {
-       // Not a valid URL, proceed to error
+      // Not a valid URL, proceed to error
     }
 
     // If neither format is matched
@@ -143,12 +143,12 @@ export function QrScanner() {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       const ctx = canvas.getContext('2d');
-      
+
       if (ctx) {
         canvas.height = video.videoHeight;
         canvas.width = video.videoWidth;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'dontInvert',
@@ -161,7 +161,7 @@ export function QrScanner() {
       }
     }
     if (isScanning) {
-        animationFrameId.current = requestAnimationFrame(tick);
+      animationFrameId.current = requestAnimationFrame(tick);
     }
   }, [isScanning, stopScan]);
 
@@ -178,43 +178,49 @@ export function QrScanner() {
 
   useEffect(() => {
     if (scannedData) {
-        const fetchRegistration = async () => {
-            setIsFetching(true);
-            setError(null);
-            try {
-                const docRef = doc(db, 'registrations', scannedData.registrationId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setScannedRegistration({ id: docSnap.id, ...docSnap.data() } as Registration);
-                } else {
-                    setError('Registration not found.');
-                }
-            } catch (err) {
-                setError('Failed to fetch registration data.');
-            } finally {
-                setIsFetching(false);
-            }
-        };
-        fetchRegistration();
+      const fetchRegistration = async () => {
+        setIsFetching(true);
+        setError(null);
+        try {
+          const docRef = doc(db, 'registrations', scannedData.registrationId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setScannedRegistration({ id: docSnap.id, ...docSnap.data() } as Registration);
+          } else {
+            setError('Registration not found.');
+          }
+        } catch (err) {
+          setError('Failed to fetch registration data.');
+        } finally {
+          setIsFetching(false);
+        }
+      };
+      fetchRegistration();
     }
   }, [scannedData]);
-  
+
   const handleCheckIn = async () => {
     if (!scannedData || !scannedRegistration || !user) return;
     setIsProcessing(true);
-    const result = await checkInRider({
+    try {
+      const token = await user.getIdToken();
+      const result = await checkInRider({
         registrationId: scannedData.registrationId,
         adminId: user.uid,
-    });
-    if (result.success) {
+        token,
+      });
+      if (result.success) {
         toast({
-            title: "Success",
-            description: result.message,
-            action: <UserCheck className="text-primary" />,
+          title: "Success",
+          description: result.message,
+          action: <UserCheck className="text-primary" />,
         });
         setScannedRegistration(null); // Close dialog
-    } else {
+      } else {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
     setIsProcessing(false);
   }
@@ -222,19 +228,25 @@ export function QrScanner() {
   const handleFinish = async () => {
     if (!scannedData || !scannedRegistration || !user) return;
     setIsProcessing(true);
-    const result = await finishRider({
+    try {
+      const token = await user.getIdToken();
+      const result = await finishRider({
         registrationId: scannedData.registrationId,
         adminId: user.uid,
-    });
-    if (result.success) {
+        token,
+      });
+      if (result.success) {
         toast({
-            title: "Success!",
-            description: result.message,
-            action: <Flag className="text-primary" />,
+          title: "Success!",
+          description: result.message,
+          action: <Flag className="text-primary" />,
         });
         setScannedRegistration(null); // Close dialog
-    } else {
+      } else {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
     setIsProcessing(false);
   }
@@ -242,31 +254,43 @@ export function QrScanner() {
   const handleRevertCheckIn = async () => {
     if (!scannedData || !scannedRegistration || !user) return;
     setIsProcessing(true);
-    const result = await revertCheckIn({
+    try {
+      const token = await user.getIdToken();
+      const result = await revertCheckIn({
         registrationId: scannedData.registrationId,
         adminId: user.uid,
-    });
-    if (result.success) {
+        token,
+      });
+      if (result.success) {
         toast({ title: "Success", description: result.message });
         setScannedRegistration(null);
-    } else {
+      } else {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
     setIsProcessing(false);
   }
-  
+
   const handleRevertFinish = async () => {
     if (!scannedData || !scannedRegistration || !user) return;
     setIsProcessing(true);
-    const result = await revertFinish({
+    try {
+      const token = await user.getIdToken();
+      const result = await revertFinish({
         registrationId: scannedData.registrationId,
         adminId: user.uid,
-    });
-    if (result.success) {
+        token,
+      });
+      if (result.success) {
         toast({ title: "Success", description: result.message });
         setScannedRegistration(null);
-    } else {
+      } else {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
     }
     setIsProcessing(false);
   }
@@ -280,7 +304,7 @@ export function QrScanner() {
   }
 
   if (!canEdit) {
-     return (
+    return (
       <div className="text-muted-foreground flex items-center justify-center gap-2 p-4 bg-secondary rounded-md h-full">
         <ShieldAlert className="h-5 w-5" />
         <p>You do not have permission to use the scanner.</p>
@@ -290,103 +314,103 @@ export function QrScanner() {
 
   return (
     <div className="space-y-4">
-        {!isScanning ? (
-            <Button onClick={startScan} className="w-full">
-                <Camera className="mr-2 h-4 w-4" /> Start Scanning
-            </Button>
-        ) : (
-            <Button onClick={stopScan} variant="outline" className="w-full">
-                <CameraOff className="mr-2 h-4 w-4" /> Stop Scanning
-            </Button>
+      {!isScanning ? (
+        <Button onClick={startScan} className="w-full">
+          <Camera className="mr-2 h-4 w-4" /> Start Scanning
+        </Button>
+      ) : (
+        <Button onClick={stopScan} variant="outline" className="w-full">
+          <CameraOff className="mr-2 h-4 w-4" /> Stop Scanning
+        </Button>
+      )}
+
+      <div className="relative w-full max-w-sm mx-auto aspect-square bg-muted rounded-md overflow-hidden flex items-center justify-center">
+        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+        <canvas ref={canvasRef} className="hidden" />
+        {isScanning && (
+          <div className="absolute inset-0 border-8 border-primary/50 rounded-md animate-pulse" />
         )}
+        {hasCameraPermission === false && !isScanning && (
+          <div className="text-muted-foreground text-center p-4">
+            <CameraOff className="h-10 w-10 mx-auto mb-2" />
+            <p>Camera not available</p>
+          </div>
+        )}
+      </div>
 
-        <div className="relative w-full max-w-sm mx-auto aspect-square bg-muted rounded-md overflow-hidden flex items-center justify-center">
-            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-            <canvas ref={canvasRef} className="hidden" />
-            {isScanning && (
-                <div className="absolute inset-0 border-8 border-primary/50 rounded-md animate-pulse" />
+      {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Scan Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+
+      <AlertDialog open={!!scannedRegistration && !isFetching} onOpenChange={() => { setScannedRegistration(null); setScannedData(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rider Details & Actions</AlertDialogTitle>
+            <AlertDialogDescription>
+              {scannedRegistration?.status !== 'approved' && <Badge variant="destructive" className="mb-2">Registration Not Approved!</Badge>}
+              Verify rider information and perform an action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {isFetching ? (
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          ) : scannedRegistration && (
+            <div className="space-y-4 text-sm">
+              <div>
+                <p><strong>Name:</strong> {scannedRegistration.fullName}</p>
+                <p><strong>Age:</strong> {scannedRegistration.age}</p>
+                <p><strong>Phone:</strong> {scannedRegistration.phoneNumber}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><strong>Checked-in:</strong> {riderIsCheckedIn ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="mr-1 h-3 w-3" />Yes</Badge> : <Badge variant="secondary">No</Badge>}</div>
+                <div><strong>Finished:</strong> {riderIsFinished ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="mr-1 h-3 w-3" />Yes</Badge> : <Badge variant="secondary">No</Badge>}</div>
+              </div>
+            </div>
+          )}
+          <Separator />
+          <AlertDialogFooter className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setScannedRegistration(null)}>Cancel</Button>
+
+            {!riderIsCheckedIn ? (
+              <Button
+                onClick={handleCheckIn}
+                disabled={isProcessing || scannedRegistration?.status !== 'approved' || !canEdit}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Check-In
+              </Button>
+            ) : (
+              <Button
+                onClick={handleRevertCheckIn}
+                disabled={isProcessing || !canEdit}
+                variant="destructive"
+              >
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Revert Check-In
+              </Button>
             )}
-             {hasCameraPermission === false && !isScanning && (
-                <div className="text-muted-foreground text-center p-4">
-                    <CameraOff className="h-10 w-10 mx-auto mb-2" />
-                    <p>Camera not available</p>
-                </div>
+
+            {!riderIsFinished ? (
+              <Button
+                onClick={handleFinish}
+                disabled={isProcessing || !riderIsCheckedIn || scannedRegistration?.status !== 'approved' || !canEdit}
+              >
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Mark as Finished
+              </Button>
+            ) : (
+              <Button
+                onClick={handleRevertFinish}
+                disabled={isProcessing || !canEdit}
+                variant="destructive"
+              >
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Revert Finish
+              </Button>
             )}
-        </div>
-        
-        {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Scan Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-
-        <AlertDialog open={!!scannedRegistration && !isFetching} onOpenChange={() => { setScannedRegistration(null); setScannedData(null); }}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Rider Details & Actions</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        {scannedRegistration?.status !== 'approved' && <Badge variant="destructive" className="mb-2">Registration Not Approved!</Badge>}
-                        Verify rider information and perform an action.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                {isFetching ? (
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                ) : scannedRegistration && (
-                    <div className="space-y-4 text-sm">
-                        <div>
-                            <p><strong>Name:</strong> {scannedRegistration.fullName}</p>
-                            <p><strong>Age:</strong> {scannedRegistration.age}</p>
-                            <p><strong>Phone:</strong> {scannedRegistration.phoneNumber}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                             <div><strong>Checked-in:</strong> {riderIsCheckedIn ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="mr-1 h-3 w-3" />Yes</Badge> : <Badge variant="secondary">No</Badge>}</div>
-                             <div><strong>Finished:</strong> {riderIsFinished ? <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="mr-1 h-3 w-3" />Yes</Badge> : <Badge variant="secondary">No</Badge>}</div>
-                        </div>
-                    </div>
-                )}
-                <Separator />
-                 <AlertDialogFooter className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                     <Button variant="outline" onClick={() => setScannedRegistration(null)}>Cancel</Button>
-                    
-                     {!riderIsCheckedIn ? (
-                        <Button 
-                            onClick={handleCheckIn} 
-                            disabled={isProcessing || scannedRegistration?.status !== 'approved' || !canEdit}
-                            className="bg-green-600 hover:bg-green-700"
-                        >
-                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Check-In
-                        </Button>
-                     ) : (
-                        <Button 
-                            onClick={handleRevertCheckIn} 
-                            disabled={isProcessing || !canEdit}
-                            variant="destructive"
-                        >
-                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                             <RotateCcw className="mr-2 h-4 w-4" />
-                            Revert Check-In
-                        </Button>
-                     )}
-
-                     {!riderIsFinished ? (
-                        <Button 
-                            onClick={handleFinish} 
-                            disabled={isProcessing || !riderIsCheckedIn || scannedRegistration?.status !== 'approved' || !canEdit}
-                        >
-                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Mark as Finished
-                        </Button>
-                     ) : (
-                        <Button 
-                            onClick={handleRevertFinish} 
-                            disabled={isProcessing || !canEdit}
-                            variant="destructive"
-                        >
-                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                             <RotateCcw className="mr-2 h-4 w-4" />
-                            Revert Finish
-                        </Button>
-                     )}
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

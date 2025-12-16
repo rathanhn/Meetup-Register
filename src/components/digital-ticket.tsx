@@ -11,7 +11,6 @@ import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import Logo from '@/Logo.png';
 import Link from 'next/link';
 import { useEventSettings } from '@/hooks/use-event-settings';
 import { format } from 'date-fns';
@@ -71,7 +70,7 @@ export function SingleTicket({ id, registration }: SingleTicketProps) {
 
     const title = settings.ticketTitle || 'RideRegister';
     const subTitle = settings.ticketSubtitle || 'Event Ticket';
-    const logoSrc = settings.ticketLogoUrl || Logo;
+    const logoSrc = settings.ticketLogoUrl;
 
     const qrData = JSON.stringify({
         registrationId: registration.id,
@@ -83,10 +82,12 @@ export function SingleTicket({ id, registration }: SingleTicketProps) {
             <div className="p-4 bg-muted/10 relative">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        {typeof logoSrc === 'string' ? (
+                        {logoSrc ? (
                             <img src={logoSrc} alt="Event Logo" className="w-10 h-10 object-contain rounded-full" />
                         ) : (
-                            <Image src={logoSrc} alt="Event Logo" width={40} height={40} className="rounded-full" />
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <Bike className="w-6 h-6 text-primary" />
+                            </div>
                         )}
                         <div>
                             <h3 className="font-bold text-primary">{title}</h3>

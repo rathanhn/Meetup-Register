@@ -46,12 +46,12 @@ interface PromotionFormProps {
 }
 
 const fileToDataUri = (file: File) => {
-    return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
 export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionFormProps) {
@@ -66,14 +66,14 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-     if (isOpen) {
-        if (promotion) {
-          form.reset(promotion);
-          setPhotoPreview(promotion.imageUrl);
-        } else {
-          form.reset({ title: "", description: "", validity: "", imageUrl: "", imageHint: "", actualPrice: undefined, offerPrice: undefined });
-          setPhotoPreview(null);
-        }
+    if (isOpen) {
+      if (promotion) {
+        form.reset(promotion);
+        setPhotoPreview(promotion.imageUrl);
+      } else {
+        form.reset({ title: "", description: "", validity: "", imageUrl: "", imageHint: "", actualPrice: undefined, offerPrice: undefined });
+        setPhotoPreview(null);
+      }
     }
   }, [promotion, form, isOpen]);
 
@@ -87,13 +87,13 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
       try {
         const dataUri = await fileToDataUri(file);
         const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: JSON.stringify({ file: dataUri }),
-            headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          body: JSON.stringify({ file: dataUri }),
+          headers: { 'Content-Type': 'application/json' },
         });
         const { url, error } = await uploadResponse.json();
         if (error || !url) {
-            throw new Error(error || 'Failed to upload photo.');
+          throw new Error(error || 'Failed to upload photo.');
         }
         form.setValue('imageUrl', url, { shouldValidate: true });
         setPhotoPreview(url);
@@ -109,26 +109,28 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) return;
     try {
-        const result = await managePromotion({ ...values, adminId: user.uid, promotionId: promotion?.id });
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await managePromotion({ ...values, adminId: user.uid, promotionId: promotion?.id, token });
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
-  
+
   const handleDelete = async () => {
     if (!user || !promotion) return;
     try {
-        const result = await deletePromotion(promotion.id, user.uid);
-        if (result.success) {
-          toast({ title: "Success", description: result.message });
-          setIsOpen(false);
-        }
+      const token = await user.getIdToken();
+      const result = await deletePromotion(promotion.id, user.uid, token);
+      if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setIsOpen(false);
+      }
     } catch (e: any) {
-        toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   }
 
@@ -144,64 +146,64 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
             <FormField name="title" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField name="description" control={form.control} render={({ field }) => (
+            <FormField name="description" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} rows={4} /></FormControl><FormMessage /></FormItem>
             )} />
-             <FormField name="validity" control={form.control} render={({ field }) => (
+            <FormField name="validity" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Validity</FormLabel><FormControl><Input {...field} placeholder="e.g., Valid until August 15th" /></FormControl><FormMessage /></FormItem>
             )} />
-            
+
             <FormItem>
               <FormLabel>Promotion Photo</FormLabel>
               <FormControl>
                 <div className="space-y-2">
-                    <div className="relative w-full aspect-video rounded-md border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
+                  <div className="relative w-full aspect-video rounded-md border-2 border-dashed flex items-center justify-center bg-muted overflow-hidden">
                     {photoPreview ? (
-                        <Image src={photoPreview} alt="Promotion preview" fill className="object-cover" />
+                      <Image src={photoPreview} alt="Promotion preview" fill className="object-cover" />
                     ) : null}
-                     {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
-                    </div>
-                    <Button type="button" variant="outline" className="w-full" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
-                        <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change Photo' : 'Upload Photo'}
-                    </Button>
-                    <Input
+                    {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
+                  </div>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => photoInputRef.current?.click()} disabled={isUploading}>
+                    <Upload className="mr-2 h-4 w-4" /> {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                  </Button>
+                  <Input
                     type="file"
                     className="hidden"
                     ref={photoInputRef}
                     onChange={handlePhotoChange}
                     accept="image/png, image/jpeg"
                     disabled={isUploading}
-                    />
+                  />
                 </div>
               </FormControl>
-               <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
+              <FormMessage>{form.formState.errors.imageUrl?.message}</FormMessage>
             </FormItem>
 
-             <FormField name="imageHint" control={form.control} render={({ field }) => (
+            <FormField name="imageHint" control={form.control} render={({ field }) => (
               <FormItem><FormLabel>Image Hint</FormLabel><FormControl><Input {...field} placeholder="riding gloves" /></FormControl><FormMessage /></FormItem>
             )} />
-             <div className="grid grid-cols-2 gap-4">
-                 <FormField name="actualPrice" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>Actual Price (Optional)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField name="offerPrice" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>Offer Price (Optional)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField name="actualPrice" control={form.control} render={({ field }) => (
+                <FormItem><FormLabel>Actual Price (Optional)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField name="offerPrice" control={form.control} render={({ field }) => (
+                <FormItem><FormLabel>Offer Price (Optional)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
             </div>
 
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between w-full pt-4 sticky bottom-0 bg-background/95 py-3 -mx-1 px-1">
-                {promotion ? (
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this promotion.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                ) : <div />}
+              {promotion ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={isSubmitting}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action will permanently delete this promotion.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : <div />}
               <Button type="submit" disabled={isSubmitting || isUploading}>
                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {promotion ? "Save Changes" : "Create Promotion"}
@@ -214,4 +216,3 @@ export function PromotionForm({ isOpen, setIsOpen, promotion, user }: PromotionF
   );
 }
 
-    

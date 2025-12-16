@@ -20,7 +20,8 @@ import {
     List,
     UserCheck,
     Flag,
-    MessageSquare
+    MessageSquare,
+    Bike
 } from "lucide-react"
 
 import {
@@ -42,11 +43,9 @@ import {
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types";
 import { useEventSettings } from "@/hooks/use-event-settings";
-import Logo from "@/Logo.png";
 
 // This is sample data.
 const data = {
@@ -177,17 +176,19 @@ export function AppSidebar({ userRole, ...props }: AppSidebarProps) {
     const { state } = useSidebar();
     const { settings } = useEventSettings();
     const title = settings?.headerTitle || "RideRegister";
-    const logoSrc = settings?.headerLogoUrl || Logo;
+    const logoUrl = settings?.headerLogoUrl;
 
     return (
         <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
                 <div className="flex items-center gap-2 px-2 py-2">
                     <div className="flex aspect-square size-10 items-center justify-center rounded-lg  text-sidebar-primary-foreground overflow-hidden">
-                        {typeof logoSrc === 'string' ? (
-                            <img src={logoSrc} alt="Logo" className="w-full h-full object-contain" />
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
                         ) : (
-                            <Image src={logoSrc} alt="Logo" className="w-full h-full object-contain" />
+                            <div className="flex items-center justify-center w-full h-full bg-primary/10 rounded-full">
+                                <Bike className="w-6 h-6 text-primary" />
+                            </div>
                         )}
                     </div>
                     <div className="flex flex-col gap-0.5 leading-none">

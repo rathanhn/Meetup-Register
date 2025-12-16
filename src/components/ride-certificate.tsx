@@ -3,9 +3,8 @@
 
 import React from 'react';
 import Image from 'next/image';
-import Logo from '@/Logo.png';
 import { format } from 'date-fns';
-import { User } from 'lucide-react';
+import { User, Bike } from 'lucide-react';
 
 interface RideCertificateProps {
   riderName: string;
@@ -33,8 +32,8 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
     // Let's assume user types full event name. The text below hardcodes "for successfully completing the".
     // "for successfully completing the [Annual Community Bike Ride]"
 
-    // Logic for logo: if settings.logoUrl exists, use it. Else use default Logo.
-    const logoSrc = settings?.certificateLogoUrl || Logo;
+    // Logic for logo: if settings.logoUrl exists, use it. Else use default default Icon.
+    const logoSrc = settings?.certificateLogoUrl;
 
     const signatoryName = settings?.certificateSignatoryName || "RideRegister Team";
     const signatoryRole = settings?.certificateSignatoryRole || "Event Organizer";
@@ -56,17 +55,12 @@ export const RideCertificate = React.forwardRef<HTMLDivElement, RideCertificateP
           <div className="flex-grow flex flex-col items-center justify-center">
             <div className="block mx-auto">
               {/* Use img for external URLs to avoid Next.Image host config issues if users upload anywhere */}
-              {typeof logoSrc === 'string' ? (
+              {logoSrc ? (
                 <img src={logoSrc} alt="Event Logo" className="w-20 h-20 object-contain rounded-full" />
               ) : (
-                <Image
-                  src={logoSrc}
-                  alt="Event Logo"
-                  width={80}
-                  height={80}
-                  className="rounded-full"
-                  priority
-                />
+                <div className="flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full border border-primary/20">
+                  <Bike className="w-10 h-10 text-primary" />
+                </div>
               )}
             </div>
 
