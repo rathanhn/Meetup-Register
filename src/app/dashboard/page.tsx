@@ -48,9 +48,9 @@ export default function DashboardPage() {
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [origin, setOrigin] = useState('');
 
-    const whatsappGroupUrl = settings?.communityWhatsAppGroupUrl || "https://chat.whatsapp.com/B9glPPTpS1oIZD6fN8AeX4";
-    const organizerUrl = settings?.communityOrganizerWhatsAppUrl || "https://wa.me/916363148287";
-    const instagramUrl = settings?.communityInstagramUrl || "https://www.instagram.com/telefun_";
+    const whatsappGroupUrl = settings?.communityWhatsAppGroupUrl;
+    const organizerUrl = settings?.communityOrganizerWhatsAppUrl;
+    const instagramUrl = settings?.communityInstagramUrl;
 
     useEffect(() => {
         setOrigin(window.location.origin);
@@ -253,15 +253,24 @@ export default function DashboardPage() {
                                     <CardDescription>Connect with other riders and get help.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <Button asChild className="w-full bg-green-500 hover:bg-green-600 text-white" size="lg">
-                                        <Link href={whatsappGroupUrl} target="_blank">Join WhatsApp Group</Link>
-                                    </Button>
-                                    <Button asChild className="w-full" variant="outline" size="lg">
-                                        <Link href={organizerUrl} target="_blank">Contact Organizers</Link>
-                                    </Button>
-                                    <Button asChild className="w-full" variant="outline" size="lg">
-                                        <Link href={instagramUrl} target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
-                                    </Button>
+                                    {whatsappGroupUrl && (
+                                        <Button asChild className="w-full bg-green-500 hover:bg-green-600 text-white" size="lg">
+                                            <Link href={whatsappGroupUrl} target="_blank">Join WhatsApp Group</Link>
+                                        </Button>
+                                    )}
+                                    {organizerUrl && (
+                                        <Button asChild className="w-full" variant="outline" size="lg">
+                                            <Link href={organizerUrl} target="_blank">Contact Organizers</Link>
+                                        </Button>
+                                    )}
+                                    {instagramUrl && (
+                                        <Button asChild className="w-full" variant="outline" size="lg">
+                                            <Link href={instagramUrl} target="_blank"><Instagram className="mr-2 h-4 w-4" />Follow on Instagram</Link>
+                                        </Button>
+                                    )}
+                                    {!whatsappGroupUrl && !organizerUrl && !instagramUrl && (
+                                        <p className="text-center text-muted-foreground text-sm">No community links added yet.</p>
+                                    )}
                                 </CardContent>
                             </Card>
                             <div className="h-full">
