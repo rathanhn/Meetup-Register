@@ -79,13 +79,45 @@ const formSchema = z
   });
 
 
-// Helper to convert file to Base64 Data URI
-const fileToDataUri = (file: File) => {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+// Helper to resize and compress image to avoid payload limits
+const compressImage = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_WIDTH = 800; // Resize large images to max 800px width
+      const MAX_HEIGHT = 800;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to process image'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Compress to JPEG with 0.7 quality matches standard web optimization
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      resolve(dataUrl);
+      URL.revokeObjectURL(img.src); // Cleanup
+    };
+    img.onerror = (err) => reject(new Error("Failed to load image for compression"));
   });
 };
 
@@ -213,10 +245,22 @@ export function RegistrationForm() {
       let finalPhotoUrl: string | undefined = undefined;
 
       if (values.photoURL && values.photoURL instanceof File) {
-        const dataUri = await fileToDataUri(values.photoURL);
+        // Compress image client-side to avoid "Request Entity Too Large" (413) errors
+        const dataUri = await compressImage(values.photoURL);
+
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST', body: JSON.stringify({ file: dataUri }), headers: { 'Content-Type': 'application/json' },
         });
+
+        if (!uploadResponse.ok) {
+          const text = await uploadResponse.text();
+          console.error("Upload failed with status:", uploadResponse.status, text);
+          if (uploadResponse.status === 413) {
+            throw new Error("Image is too large to upload. Please try a smaller photo.");
+          }
+          throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+        }
+
         const { url, error } = await uploadResponse.json();
         if (error || !url) throw new Error(error || 'Failed to upload photo.');
         finalPhotoUrl = url;
