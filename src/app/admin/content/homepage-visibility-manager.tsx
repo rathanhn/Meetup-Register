@@ -21,9 +21,7 @@ import { useMemoFirebase } from "@/firebase/memo";
 
 const formSchema = z.object({
   showSchedule: z.boolean(),
-  showReviews: z.boolean(),
   showOrganizers: z.boolean(),
-  showPromotions: z.boolean(),
 });
 
 export function HomepageVisibilityManager() {
@@ -39,9 +37,7 @@ export function HomepageVisibilityManager() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       showSchedule: true,
-      showReviews: true,
       showOrganizers: true,
-      showPromotions: true,
     },
   });
 
@@ -67,9 +63,7 @@ export function HomepageVisibilityManager() {
       const data = settingsDoc;
       form.reset({
         showSchedule: data.showSchedule ?? true,
-        showReviews: data.showReviews ?? true,
         showOrganizers: data.showOrganizers ?? true,
-        showPromotions: data.showPromotions ?? true,
       });
     }
   }, [settingsDoc, form]);
@@ -112,14 +106,8 @@ export function HomepageVisibilityManager() {
                 <FormField name="showSchedule" control={form.control} render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Schedule</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                 )} />
-                <FormField name="showReviews" control={form.control} render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Reviews</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                )} />
                 <FormField name="showOrganizers" control={form.control} render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Organizers</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                )} />
-                <FormField name="showPromotions" control={form.control} render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Promotions</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                 )} />
               </div>
 
