@@ -130,10 +130,19 @@ export function GeneralSettingsManager() {
 
     try {
       const token = await user.getIdToken();
+
+      // Sanitize data before sending to server action
+      const dataToSend = { ...formData };
+
+      // Convert Firestore Timestamp to Date if necessary
+      if (dataToSend.startTime && typeof (dataToSend.startTime as any).toDate === 'function') {
+        dataToSend.startTime = (dataToSend.startTime as any).toDate();
+      }
+
       const result = await manageGeneralSettings({
         adminId: user.uid,
         token,
-        ...formData
+        ...dataToSend
       });
 
       if (result.success) {
