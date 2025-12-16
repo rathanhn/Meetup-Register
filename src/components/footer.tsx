@@ -11,7 +11,7 @@ export function Footer() {
     // Hide footer on admin routes
     if (pathname?.startsWith('/admin')) return null;
 
-    const developerName = settings?.developerName || "Rathan H N";
+    const developerName = settings?.developerName || "Rathan.dev";
     const developerLink = settings?.developerLink || "https://www.instagram.com/rathan_hn";
 
     return (
